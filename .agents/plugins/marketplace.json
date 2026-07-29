@@ -1,0 +1,20 @@
+{
+  "name": "kimi-plugin-codex",
+  "interface": {
+    "displayName": "Kimi Plugin for Codex"
+  },
+  "plugins": [
+    {
+      "name": "kimi",
+      "source": {
+        "source": "local",
+        "path": "./plugins/kimi"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

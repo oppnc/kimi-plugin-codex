@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Logs & local runtime
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS / temp
+*.tmp
+*.temp
+.cache/
+tmp/
+temp/
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Local job / session data (never commit)
+.kimi-plugin-codex/
+
+# Local agent overrides
+.claude/
+.codex/
+.grok/

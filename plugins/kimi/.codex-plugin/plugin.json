@@ -1,0 +1,25 @@
+{
+  "name": "kimi",
+  "version": "0.1.0",
+  "description": "Call local Kimi Code as a Codex subagent over ACP (multimodal, goals, resume).",
+  "author": {
+    "name": "kimi-plugin-codex"
+  },
+  "homepage": "https://github.com/oppnc/kimi-plugin-codex",
+  "license": "MIT",
+  "keywords": ["kimi", "acp", "subagent", "coding"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Kimi Code",
+    "shortDescription": "Local Kimi Code as a Codex subagent",
+    "longDescription": "Thin ACP bridge: hand tasks to local Kimi Code as a subagent (kimi_rescue). Kimi keeps its own tools, models, skills, and multimodal strengths. One handoff returns the subagent result; long work may continue via status/result if the MCP wait budget ends. Requires a local Kimi Code CLI (not Codex Cloud).",
+    "developerName": "kimi-plugin-codex",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "defaultPrompt": [
+      "Hand this substantial frontend or multi-file task to the Kimi Code subagent.",
+      "Use kimi_rescue and return Kimi's result verbatim."
+    ]
+  }
+}

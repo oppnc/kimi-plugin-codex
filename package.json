@@ -1,0 +1,37 @@
+{
+  "name": "kimi-plugin-codex",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OpenAI Codex plugin that runs local Kimi Code as a subagent over ACP (MCP + skills).",
+  "license": "MIT",
+  "author": "oppnc",
+  "homepage": "https://github.com/oppnc/kimi-plugin-codex#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oppnc/kimi-plugin-codex.git"
+  },
+  "bugs": {
+    "url": "https://github.com/oppnc/kimi-plugin-codex/issues"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "scripts": {
+    "test": "node --test tests/args.test.mjs tests/permissions.test.mjs tests/state.test.mjs tests/media.test.mjs tests/process.test.mjs tests/mcp-smoke.test.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "setup": "node plugins/kimi/scripts/kimi-companion.mjs setup",
+    "companion": "node plugins/kimi/scripts/kimi-companion.mjs"
+  },
+  "keywords": [
+    "kimi",
+    "kimi-code",
+    "codex",
+    "openai-codex",
+    "chatgpt",
+    "acp",
+    "mcp",
+    "subagent",
+    "plugin"
+  ]
+}
