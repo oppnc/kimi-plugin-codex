@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * kimi-companion v0.1.4 — Kimi Code over ACP for OpenAI Codex.
+ * kimi-companion v0.2.0 — Kimi Code over ACP for OpenAI Codex.
  */
 
 import { spawn } from "node:child_process";
@@ -45,10 +45,12 @@ import {
   renderStatusList,
   renderTaskResult,
 } from "./lib/render.mjs";
+import { companionTaskAcceptance } from "./lib/acceptance.mjs";
+import { bridgeNotesEnabled, buildUserPrompt } from "./lib/prompt.mjs";
 import { describeWorkspaceRoot, resolveWorkspaceRoot } from "./lib/workspace.mjs";
 
 const VALID_MODES = new Set(["default", "plan", "auto", "yolo"]);
-const VERSION = "0.1.4";
+const VERSION = "0.2.0";
 const MIN_NODE = "18.18.0";
 /** Heartbeat interval for background runners (ms). */
 const BG_HEARTBEAT_MS = 10_000;
@@ -69,16 +71,6 @@ const PHASE = {
   FAILED: "failed",
   CANCELLED: "cancelled",
 };
-
-/**
- * Minimal handoff note for the delegated Kimi run (not a second system prompt).
- * Keep short so the host stays a thin subagent wrapper.
- */
-const BRIDGE_EXECUTION_CONTRACT = [
-  "Host handoff (keep working in your normal Kimi Code environment):",
-  "- Finish the user objective, or stop only when blocked with concrete evidence.",
-  "- Prefer short tool steps; if you background a command, observe its completion before claiming done.",
-].join("\n");
 
 function printUsage() {
   console.log(
@@ -105,7 +97,8 @@ function printUsage() {
       "  --goal                 frame prompt as a Kimi Goal objective",
       "  --background  --json",
       "",
-      "Env: KIMI_CLI_PATH, KIMI_PLUGIN_CODEX_DATA_DIR, CODEX_SESSION_ID / KIMI_PLUGIN_CODEX_HOST_SESSION",
+      "Env: KIMI_CLI_PATH, KIMI_PLUGIN_CODEX_DATA_DIR, CODEX_SESSION_ID / KIMI_PLUGIN_CODEX_HOST_SESSION,",
+      "     KIMI_BRIDGE_HANDOFF=1 (optional legacy host handoff bullets on task prompt)",
     ].join("\n"),
   );
 }
@@ -154,9 +147,11 @@ function nodeSemverOk(current, min = MIN_NODE) {
 
 function setupNextSteps() {
   return [
-    "Happy path: hand frontend/UI (or screenshot/video bugs) to Kimi via kimi_rescue — do not implement them in Codex when Kimi is ready.",
-    'In Codex: "Use kimi_rescue to implement a small responsive settings section using existing design tokens"',
-    "First-time: call MCP tool kimi_setup, then kimi_rescue with a short frontend task",
+    "When a task is frontend/UI/screenshot/multi-file UI: load skill $kimi:rescue — do not implement it in Codex when Kimi is ready.",
+    "Main agent routes (bg/wait, resume); built-in subagent only runs companion; Kimi owns tools/system.",
+    "First-time: $kimi:setup, then a short frontend handoff via $kimi:rescue",
+    "Light non-UI one-shot: $kimi:task (explicit); large/UI goals: $kimi:rescue with --goal, or $kimi:goal for small non-UI",
+    "Long work: $kimi:status / $kimi:result; sessions: $kimi:sessions",
     'CLI probe: node plugins/kimi/scripts/kimi-companion.mjs task --mode yolo -- "Reply with exactly: kimi-bridge-ok"',
   ];
 }
@@ -177,32 +172,6 @@ function findResumeSessionId(cwd, explicitSession) {
     }
   }
   return candidates[0]?.sessionId || null;
-}
-
-function buildUserPrompt({ prompt, asGoal, gitContext }) {
-  const chunks = [];
-  if (gitContext) {
-    chunks.push(gitContext);
-    chunks.push("");
-  }
-  if (asGoal) {
-    chunks.push(
-      [
-        "Treat the following as a Kimi **Goal**: a clear finish line with verifiable evidence.",
-        "Use CreateGoal / goal tools if available, keep working until the objective is met or blocked,",
-        "and report evidence of completion.",
-        "",
-        BRIDGE_EXECUTION_CONTRACT,
-        "",
-        `Objective: ${prompt}`,
-      ].join("\n"),
-    );
-  } else {
-    chunks.push(prompt);
-    chunks.push("");
-    chunks.push(BRIDGE_EXECUTION_CONTRACT);
-  }
-  return chunks.join("\n");
 }
 
 async function cmdSetup(asJson) {
@@ -355,6 +324,7 @@ async function cmdTask(argv, { forceGoal = false } = {}) {
     prompt: args.prompt || "(see attached media)",
     asGoal,
     gitContext,
+    bridgeNotes: bridgeNotesEnabled(),
   });
 
   let sessionMode = "new";
@@ -406,6 +376,7 @@ async function cmdTask(argv, { forceGoal = false } = {}) {
       sessionMode,
       sessionId,
       extraBlocks: media.blocks,
+      asGoal,
     });
   } catch (error) {
     // Keep a failure record so status/result can surface it later.
@@ -435,9 +406,11 @@ async function cmdTask(argv, { forceGoal = false } = {}) {
 
   const jobId = generateJobId();
   const hostSessionId = getHostSessionId();
+  // Peer posture: empty completion is a failed handoff (shared acceptance.mjs).
+  const acc = companionTaskAcceptance(result);
   writeJob({
     id: jobId,
-    status: "completed",
+    status: acc.jobStatus,
     cwd,
     mode,
     model: args.model || null,
@@ -453,7 +426,13 @@ async function cmdTask(argv, { forceGoal = false } = {}) {
     toolEventCount: result.toolCalls?.length || 0,
     mediaNotes: media.notes,
     asGoal,
-    error: null,
+    emptyAgentText: acc.emptyAgentText,
+    emptyRetried: acc.emptyRetried,
+    emptyRecoveryNudged: acc.emptyRecoveryNudged,
+    incompleteContinued: acc.incompleteContinued,
+    continueCount: acc.continueCount,
+    incompleteReason: acc.incompleteReason,
+    error: acc.jobError,
     pid: null,
   });
 
@@ -468,12 +447,23 @@ async function cmdTask(argv, { forceGoal = false } = {}) {
     toolEventCount: result.toolCalls?.length || 0,
     mediaNotes: media.notes,
     agent: result.init?.agentInfo || null,
+    emptyAgentText: acc.emptyAgentText,
+    emptyRetried: acc.emptyRetried,
+    emptyRecoveryNudged: acc.emptyRecoveryNudged,
+    incompleteContinued: acc.incompleteContinued,
+    continueCount: acc.continueCount,
+    incompleteReason: acc.incompleteReason,
+    ok: acc.ok,
   };
 
   if (args.asJson) {
     outputJson(payload);
   } else {
     outputText(renderTaskResult(payload));
+  }
+  // Non-zero exit so hosts re-dispatch instead of treating empty as success.
+  if (acc.exitCode !== 0) {
+    process.exitCode = acc.exitCode;
   }
 }
 
@@ -827,6 +817,7 @@ async function cmdBgRun(jobId) {
       sessionMode: job.sessionMode || "new",
       sessionId: job.sessionId || null,
       extraBlocks: media.blocks,
+      asGoal: Boolean(job.asGoal),
       onUpdate: (update) => {
         const kind = update?.sessionUpdate;
         if (kind === "tool_call" || kind === "tool_call_update") {
@@ -852,19 +843,33 @@ async function cmdBgRun(jobId) {
     });
     lastSessionId = result.sessionId || lastSessionId;
     toolEventCount = Math.max(toolEventCount, result.toolCalls?.length || 0);
-    lastProgressMessage = `completed stop=${result.stopReason || "unknown"} tools=${toolEventCount}`;
+    const acc = companionTaskAcceptance(result);
+    lastProgressMessage =
+      `${acc.jobStatus} stop=${result.stopReason || "unknown"} tools=${toolEventCount}` +
+      (acc.incompleteContinued ? ` continued=${acc.continueCount}` : "") +
+      (acc.emptyRetried ? " emptyRetried" : "") +
+      (acc.emptyRecoveryNudged ? " emptyRecovery" : "");
     finalize({
-      status: "completed",
-      phase: PHASE.COMPLETED,
+      status: acc.jobStatus,
+      phase: acc.jobStatus === "failed" ? PHASE.FAILED : PHASE.COMPLETED,
       sessionId: result.sessionId,
       resultText: result.text,
       stopReason: result.stopReason,
       toolEventCount,
       mediaNotes: media.notes,
-      error: null,
+      emptyAgentText: acc.emptyAgentText,
+      emptyRetried: acc.emptyRetried,
+      emptyRecoveryNudged: acc.emptyRecoveryNudged,
+      incompleteContinued: acc.incompleteContinued,
+      continueCount: acc.continueCount,
+      incompleteReason: acc.incompleteReason,
+      error: acc.jobError,
       orphaned: false,
       lastProgressMessage,
     });
+    if (acc.exitCode !== 0) {
+      process.exitCode = acc.exitCode;
+    }
   } catch (error) {
     finalize({
       status: "failed",

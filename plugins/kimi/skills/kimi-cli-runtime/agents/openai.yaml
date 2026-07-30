@@ -1,0 +1,5 @@
+interface:
+  display_name: "Kimi CLI Runtime (internal)"
+  short_description: "Internal forwarder contract for rescue. Not for user or auto invocation."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Kimi Code Goal"
+  short_description: "Args: objective + task flags. Goal-framed Kimi run (goal --mode yolo). Not for normal frontend (use $kimi:rescue)."
+policy:
+  allow_implicit_invocation: false

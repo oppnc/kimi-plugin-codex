@@ -1,0 +1,5 @@
+interface:
+  display_name: "Kimi Code Task"
+  short_description: "Light non-UI one-shot. Frontend/UI MUST use $kimi:rescue instead."
+policy:
+  allow_implicit_invocation: false

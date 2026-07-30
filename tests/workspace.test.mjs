@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+  HOST_CWD_ENV,
   describeWorkspaceRoot,
   resolveWorkspaceRoot,
 } from "../plugins/kimi/scripts/lib/workspace.mjs";
@@ -22,16 +23,7 @@ describe("workspace", () => {
   });
 
   it("falls back to process.cwd when no host env", () => {
-    const keys = [
-      "KIMI_WORKSPACE",
-      "CODEX_WORKSPACE",
-      "CODEX_CWD",
-      "CLAUDE_PROJECT_DIR",
-      "CLAUDE_CODE_CWD",
-      "CLAUDE_CWD",
-      "GROK_WORKSPACE",
-      "GROK_CWD",
-    ];
+    const keys = HOST_CWD_ENV;
     const saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
     try {
       for (const k of keys) delete process.env[k];

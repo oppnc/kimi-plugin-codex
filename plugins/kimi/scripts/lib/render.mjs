@@ -60,7 +60,43 @@ export function renderTaskResult(result) {
     lines.push(`media: ${result.mediaNotes.join("; ")}`);
   }
   lines.push("");
-  lines.push(result.text?.trim() || "(no agent text)");
+  const body = result.text?.trim();
+  if (body) {
+    lines.push(body);
+  } else {
+    lines.push("(no agent text)");
+    if (result.emptyAgentText || result.emptyRetried || result.emptyRecoveryNudged) {
+      lines.push(
+        "",
+        "note: Kimi ACP ended with stop=end_turn but streamed no agent_message_chunk",
+        "      (and no tool calls). This is an empty completion from Kimi, not a clarifying question.",
+        "      Hosts should treat this as a failed handoff and re-dispatch (exit code is non-zero).",
+      );
+      if (result.emptyRetried) {
+        lines.push(
+          `      companion already retried on a fresh session (emptyRetried=${result.emptyRetried}).`,
+        );
+      }
+      if (result.emptyRecoveryNudged) {
+        lines.push(
+          "      companion also sent a same-session empty-recovery nudge after retries.",
+        );
+      }
+    }
+  }
+  if (result.incompleteContinued) {
+    lines.push(
+      "",
+      `note: companion force-continued incomplete work (${result.continueCount || 1} nudge(s)` +
+        (result.incompleteReason ? `; reason=${result.incompleteReason}` : "") +
+        ").",
+    );
+    if (result.incompleteReason) {
+      lines.push(
+        "      If the objective still looks unfinished, resume with --resume and the same session.",
+      );
+    }
+  }
   if (result.toolCalls?.length) {
     lines.push("");
     lines.push(`tool events: ${result.toolCalls.length}`);

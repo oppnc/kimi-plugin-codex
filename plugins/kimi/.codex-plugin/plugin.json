@@ -1,25 +1,26 @@
 {
   "name": "kimi",
-  "version": "0.1.4",
-  "description": "Hand frontend/UI and multimodal work to local Kimi Code via ACP. Happy path: kimi_rescue + poll while still_running.",
+  "version": "0.2.0",
+  "description": "Hand frontend/UI work to local Kimi Code via Codex skills + built-in subagent + companion (ACP). Skills only — no MCP. $kimi:rescue, setup, status, result, cancel, plan, goal, task, sessions.",
   "author": {
     "name": "kimi-plugin-codex"
   },
   "homepage": "https://github.com/oppnc/kimi-plugin-codex",
+  "repository": "https://github.com/oppnc/kimi-plugin-codex",
   "license": "MIT",
-  "keywords": ["kimi", "acp", "subagent", "coding"],
+  "keywords": ["kimi", "acp", "subagent", "coding", "frontend"],
   "skills": "./skills/",
-  "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Kimi Code",
-    "shortDescription": "Frontend/UI via local Kimi Code subagent",
-    "longDescription": "Thin ACP bridge: hand frontend/UI, screenshot/video bugs, and multi-file tasks to local Kimi Code (kimi_rescue). Kimi keeps tools, models, skills. One handoff returns the result; long work may continue via status/result if the MCP wait budget ends. Local Kimi Code CLI only (not Codex Cloud).",
+    "shortDescription": "Local Kimi Code subagent for frontend/UI via Codex skills",
+    "longDescription": "Codex orchestrates: when a task is frontend/UI/visual, load $kimi:rescue and hand off to local Kimi Code (built-in subagent pipe + companion ACP). Skills only — same host shape as cc-plugin-codex (no MCP tools). Kimi keeps tools, models, and skills. Local Kimi Code CLI only (not Codex Cloud).",
     "developerName": "kimi-plugin-codex",
-    "category": "Productivity",
-    "capabilities": ["Read", "Write"],
+    "category": "Coding",
+    "capabilities": ["Interactive", "Write"],
     "defaultPrompt": [
-      "Hand this frontend/UI or multi-file task to the Kimi Code subagent with kimi_rescue.",
-      "Return Kimi's result verbatim. Prefer Kimi for frontend instead of implementing it in Codex."
+      "For frontend/UI/screenshot work, MUST use $kimi:rescue — do not implement it in Codex when Kimi is available",
+      "Return Kimi's result verbatim after handoff",
+      "Run $kimi:setup once after install only"
     ]
   }
 }

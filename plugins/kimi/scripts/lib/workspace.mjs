@@ -7,7 +7,7 @@ import path from "node:path";
 import process from "node:process";
 
 /** Host env vars that often carry the project root (order = priority). */
-const HOST_CWD_ENV = [
+export const HOST_CWD_ENV = [
   "KIMI_WORKSPACE",
   "CODEX_WORKSPACE",
   "CODEX_CWD",

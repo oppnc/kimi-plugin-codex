@@ -2,6 +2,46 @@
 
 **Language / 语言:** [English](CHANGELOG.md) | [中文](CHANGELOG.zh-CN.md)
 
+## 0.2.0
+
+Public package version continues from GitHub **0.1.x** as **0.2.0** (aligned with **kimi-plugin-cc** 0.2.0). Intermediate local labels (0.2.x–0.3.0) below were development history and are not separate public tags.
+
+### Added
+- Skills-only host path: **`$kimi:rescue`** (implicit for frontend/UI) + explicit `$kimi:setup` / `status` / `result` / `cancel` / `plan` / `goal` / `task` / `sessions`
+- Functional parity with CC host surface (same capability set; skill form)
+- `lib/prompt.mjs` + optional `KIMI_BRIDGE_HANDOFF=1` (default off)
+- Job **phase** + **lastProgressMessage**; richer status render
+- `tests/skills-contracts.test.mjs`
+
+### Changed
+- **Removed MCP entirely** (skills → built-in default subagent pipe → companion → ACP only)
+- Core companion alignment with **kimi-plugin-cc** 0.2.0
+- Routing tables: UI/large work → `$kimi:rescue`; light non-UI → `$kimi:task`
+- Docs: strip false `--prompt-file` claims
+- Version **0.2.0**
+
+### Migration
+- If you added a global `codex mcp add kimi` from older builds, run `codex mcp remove kimi`
+- After skill edits: `codex plugin remove kimi@kimi-plugin-codex` then `codex plugin add kimi@kimi-plugin-codex`
+
+---
+
+## Development history (local labels before public 0.2.0)
+
+These sections record work that shipped into **0.2.0**; version numbers below were local-only.
+
+### Local 0.3.0 — skills only
+- Removed MCP surface; single path skills → pipe → companion → ACP
+
+### Local 0.2.2 — stricter handoff language
+- Rescue MUST for frontend/UI; lifecycle skills explicit-only
+
+### Local 0.2.1 — orchestration clarity
+- Parent routes; pure pipe subagent; bridge notes opt-in
+
+### Local 0.2.0-skills — host architecture shift
+- Primary path skills + built-in subagent (MCP optional at that time)
+
 ## 0.1.4
 
 ### Changed

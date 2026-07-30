@@ -47,7 +47,7 @@ export function binaryNotFoundError() {
       "Install Kimi Code: https://github.com/MoonshotAI/kimi-code",
       "In a normal terminal run: kimi login",
       "If PATH is incomplete (common on Windows), set KIMI_CLI_PATH to the full path of kimi/kimi.exe",
-      "Re-run setup (kimi_setup MCP tool or companion setup)",
+      "Re-run setup ($kimi:setup skill or companion setup)",
     ],
   });
 }
@@ -133,7 +133,7 @@ export function resumeSessionError() {
     fixes: [
       "Omit resume and start a new handoff",
       "Or pass session <id> from a prior status/result",
-      "List sessions: companion sessions",
+      "List sessions: $kimi:sessions skill or companion sessions",
     ],
   });
 }

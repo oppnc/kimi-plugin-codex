@@ -1,0 +1,5 @@
+interface:
+  display_name: "Kimi Code Cancel"
+  short_description: "Args: [job-id]. Stop a queued or running Kimi Code job."
+policy:
+  allow_implicit_invocation: false

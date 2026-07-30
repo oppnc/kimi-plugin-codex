@@ -1,0 +1,5 @@
+interface:
+  display_name: "Kimi Code Setup"
+  short_description: "Verify local Kimi Code CLI, login, ACP, and workspace. Run after install or when rescue fails."
+policy:
+  allow_implicit_invocation: false

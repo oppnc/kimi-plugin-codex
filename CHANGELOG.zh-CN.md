@@ -2,6 +2,46 @@
 
 **Language / 语言:** [English](CHANGELOG.md) | [中文](CHANGELOG.zh-CN.md)
 
+## 0.2.0
+
+公开包版本自 GitHub **0.1.x** 起记为 **0.2.0**（与 **kimi-plugin-cc** 0.2.0 锁步）。下方本地曾用的 0.2.x–0.3.0 标签仅为开发记录，不是独立公开发版。
+
+### 新增
+- 仅 Skills 宿主路径：**`$kimi:rescue`**（前端/UI 可隐式）+ 显式 `$kimi:setup` / `status` / `result` / `cancel` / `plan` / `goal` / `task` / `sessions`
+- 与 CC 宿主面功能对等（能力集合相同，形态为 skill）
+- `lib/prompt.mjs` + 可选 `KIMI_BRIDGE_HANDOFF=1`（默认关）
+- Job **phase** + **lastProgressMessage**；更丰富的 status 渲染
+- `tests/skills-contracts.test.mjs`
+
+### 变更
+- **彻底移除 MCP**（skills → 内置 default subagent 管道 → companion → ACP）
+- companion 核心与 **kimi-plugin-cc** 0.2.0 对齐
+- 路由：UI/大任务 → `$kimi:rescue`；轻量非 UI → `$kimi:task`
+- 文档：去掉虚假的 `--prompt-file`
+- 版本 **0.2.0**
+
+### 迁移
+- 若旧构建曾 `codex mcp add kimi`，请 `codex mcp remove kimi`
+- 改 skill 后：`codex plugin remove kimi@kimi-plugin-codex` 再 `codex plugin add kimi@kimi-plugin-codex`
+
+---
+
+## 开发历史（公开 0.2.0 之前的本地标签）
+
+以下内容已并入 **0.2.0**；版本号仅为本地记录。
+
+### 本地 0.3.0 — 仅 Skills
+- 移除 MCP；唯一路径 skills → 管道 → companion → ACP
+
+### 本地 0.2.2 — 更严交接语气
+- 前端/UI MUST rescue；生命周期 skill 仅显式
+
+### 本地 0.2.1 — 编排语义
+- 主线程路由；纯管道 subagent；bridge notes 可选
+
+### 本地 0.2.0-skills — 宿主架构转向
+- 主路径 skills + 内置 subagent（当时 MCP 仍为可选副通道）
+
 ## 0.1.4
 
 ### 变更
@@ -20,42 +60,28 @@
 ## 0.1.2
 
 ### 修复
-- **Codex 插件 MCP 不注入工具：** `.mcp.json` 写成裸 `"kimi"` 对象；官方要求 `"mcpServers": { "kimi": … }`。装上了但 agent 没有 `kimi_setup` / `kimi_rescue`。
-- stdio 入口改为相对路径 `./scripts/kimi-mcp.mjs` + `"cwd": "."`，与官方插件一致。
+- **Codex 插件 MCP 未注入工具：** `.mcp.json` 用了裸 `"kimi": {…}`；官方要求 `"mcpServers": { "kimi": {…} }`。
+- stdio 入口改为相对 `./scripts/kimi-mcp.mjs` + `"cwd": "."`。
 
 ### 文档
-- 明确 `kimi_rescue` 是 MCP 工具名而非 `kimi.exe`；版本变更后需重装缓存
+- 澄清 `kimi_rescue` 是 MCP 工具名而非 `kimi.exe`；版本 bump 后重装检查清单
 
 ## 0.1.1
 
 ### 新增
-- README + setup 的 **首次验证**（`kimi_rescue` 交前端任务）
-- Setup doctor：Node、workspace、compat、可行动错误码
-- 标准化 `[kimi-plugin]` 错误与 Fix 列表
-- 工作区 / 媒体路径解析增强
+- **首次验证**路径与 setup `nextSteps`
+- Setup doctor、标准错误 Fix 列表、workspace / media 路径解析
 
 ### 变更
-- 用户文档只保留主路径 `kimi_rescue`；加强前端/视觉触发
+- 用户文档 happy path：`kimi_rescue` 做前端/UI/截图/视频
 
 ## 0.1.0
 
-首次公开发布：在 **OpenAI Codex** 中通过 ACP 将本机 **Kimi Code** 作为 subagent 调用。
-
-### 新增
-
-- 薄 ACP companion + MCP 服务（`kimi-mcp.mjs`）
-- 主路径交接：`kimi_rescue`（start + wait + 结果）
-- 回退 job 工具：`kimi_task_start` / `kimi_goal_start` / `kimi_status` / `kimi_result` / `kimi_cancel` / `kimi_sessions` / `kimi_setup`
-- Skills：`kimi-delegate`（subagent 交接）、`kimi-setup`
-- 模式、多模态路径、Goals、会话续聊、可选 git 上下文
-- 后台 job（phase / progress / 孤儿回收）
-- 单元测试（`npm test`）与 smoke（`npm run smoke`）
+首个公开发版：OpenAI Codex 插件，经 ACP 把本地 **Kimi Code** 当 subagent。
 
 ### 说明
-
-- 仅本地 Codex（不支持 Codex Cloud）
-- 不重写 Kimi system prompt；工具 / swarm / skills 仍归 Kimi Code
-- 维护者文档：[AGENTS.md](AGENTS.md)
+- 仅本地 Codex（非 Codex Cloud）
+- 维护文档：[AGENTS.md](AGENTS.md)
 
 ---
 

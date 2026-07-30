@@ -1,0 +1,5 @@
+interface:
+  display_name: "Kimi Code Rescue"
+  short_description: "MUST hand frontend/UI/screenshot work to local Kimi Code. Args: --background, --wait, --resume, --fresh, --mode, --image, --video, --goal, [task]."
+# Implicit invocation stays ON (Codex default). Main agent should auto-load when
+# the task matches frontend/UI. Do not add a policy block that turns implicit off.

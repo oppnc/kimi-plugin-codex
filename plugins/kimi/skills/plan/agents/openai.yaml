@@ -1,0 +1,5 @@
+interface:
+  display_name: "Kimi Code Plan"
+  short_description: "Args: task flags. Plan-only Kimi pass (--mode plan). Not for normal frontend (use $kimi:rescue)."
+policy:
+  allow_implicit_invocation: false

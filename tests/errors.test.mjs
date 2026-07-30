@@ -45,9 +45,9 @@ describe("errors", () => {
   });
 
   it("compatNotes returns level", () => {
-    const ok = compatNotes("kimi 1.2.3", "0.1.1");
+    const ok = compatNotes("kimi 1.2.3", "0.2.0");
     assert.equal(ok.level, "ok");
-    const unknown = compatNotes(null, "0.1.1");
+    const unknown = compatNotes(null, "0.2.0");
     assert.equal(unknown.level, "unknown");
   });
 });
