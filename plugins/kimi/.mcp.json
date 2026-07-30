@@ -1,9 +1,12 @@
 {
-  "kimi": {
-    "command": "node",
-    "args": ["${PLUGIN_ROOT}/scripts/kimi-mcp.mjs"],
-    "startup_timeout_sec": 30,
-    "tool_timeout_sec": 600,
-    "enabled": true
+  "mcpServers": {
+    "kimi": {
+      "command": "node",
+      "args": ["./scripts/kimi-mcp.mjs"],
+      "cwd": ".",
+      "startup_timeout_sec": 60,
+      "tool_timeout_sec": 600,
+      "enabled": true
+    }
   }
 }

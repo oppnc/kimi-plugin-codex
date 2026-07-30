@@ -3,7 +3,7 @@
 **Language / 语言:** [English](README.md) | [中文](README.zh-CN.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Version](https://img.shields.io/badge/version-0.1.1-green.svg)](./CHANGELOG.zh-CN.md)
+[![Version](https://img.shields.io/badge/version-0.1.3-green.svg)](./CHANGELOG.zh-CN.md)
 
 在 **OpenAI Codex**（本地 CLI / IDE）里，把 **[Kimi Code](https://github.com/MoonshotAI/kimi-code)** 当作 subagent 调用。
 
@@ -11,7 +11,7 @@ Kimi k3 前端、多模态更强；在 Kimi Code 里更强。本插件是 **薄 
 
 | | |
 | --- | --- |
-| **版本** | **0.1.1** |
+| **版本** | **0.1.3** |
 | **宿主** | 本地 OpenAI Codex |
 | **Node** | ≥ 18.18 |
 | **依赖** | Kimi Code CLI + `kimi login` |
@@ -46,11 +46,21 @@ codex plugin add kimi@kimi-plugin-codex
 
 ### MCP 工具一直不出现
 
-用绝对路径注册（最常见修复）：
+1. 确认版本 **0.1.3+**（`.mcp.json` 必须包在 `"mcpServers"` 下；stdio 半包 Content-Length 不得被拆坏）。
+2. 重装刷新缓存：
+
+```bash
+codex plugin remove kimi@kimi-plugin-codex
+codex plugin add kimi@kimi-plugin-codex
+```
+
+3. 仍没有则用绝对路径全局 MCP：
 
 ```bash
 codex mcp add kimi -- node /absolute/path/to/kimi-plugin-codex/plugins/kimi/scripts/kimi-mcp.mjs
 ```
+
+说明：**`kimi_rescue` 是 MCP 工具名**，不是 shell 命令；PATH 上的 `kimi.exe` 是 Kimi Code CLI。
 
 Windows：PATH 不完整时设 `KIMI_CLI_PATH=%USERPROFILE%\.kimi-code\bin\kimi.exe`。
 
@@ -94,7 +104,7 @@ node plugins/kimi/scripts/kimi-companion.mjs task --mode yolo -- "Reply with exa
 
 | 组件 | 要求 |
 | --- | --- |
-| 本插件 | 0.1.1 |
+| 本插件 | 0.1.3 |
 | Node | ≥ 18.18 |
 | Kimi Code | 支持 `kimi acp` 的 CLI |
 | Codex | 仅本地 |

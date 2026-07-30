@@ -2,6 +2,22 @@
 
 **Language / 语言:** [English](CHANGELOG.md) | [中文](CHANGELOG.zh-CN.md)
 
+## 0.1.3
+
+### 修复
+- **Codex 将 `kimi` 标为 unavailable（无工具）：** stdout 发了 LSP `Content-Length`；Codex rmcp 要 **NDJSON**。日志：`Failed to parse message receive: Content-Length…` → `has_cached_tools=false`。stdout 改为 NDJSON；stdin 仍兼容 Content-Length。
+- 加固 stdin 半包解析；增加回归测试。
+- `startup_timeout_sec` 提到 60；`.mcp.json` 改为官方 `mcpServers` 包装。
+
+## 0.1.2
+
+### 修复
+- **Codex 插件 MCP 不注入工具：** `.mcp.json` 写成裸 `"kimi"` 对象；官方要求 `"mcpServers": { "kimi": … }`。装上了但 agent 没有 `kimi_setup` / `kimi_rescue`。
+- stdio 入口改为相对路径 `./scripts/kimi-mcp.mjs` + `"cwd": "."`，与官方插件一致。
+
+### 文档
+- 明确 `kimi_rescue` 是 MCP 工具名而非 `kimi.exe`；版本变更后需重装缓存
+
 ## 0.1.1
 
 ### 新增

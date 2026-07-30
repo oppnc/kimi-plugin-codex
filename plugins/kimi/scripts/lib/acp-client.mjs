@@ -14,7 +14,7 @@ import { spawnKimiAcp, terminateProcessTree } from "./process.mjs";
 
 /** Handshake / config only — not used for session/prompt work. */
 const INIT_TIMEOUT_MS = 60 * 1000;
-const PLUGIN_VERSION = "0.1.1";
+const PLUGIN_VERSION = "0.1.3";
 
 /** Positive ms → enforce; null/undefined/≤0 → no ACP request deadline. */
 function normalizeRequestTimeoutMs(value) {

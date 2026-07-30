@@ -2,6 +2,23 @@
 
 **Language / 语言:** [English](CHANGELOG.md) | [中文](CHANGELOG.zh-CN.md)
 
+## 0.1.3
+
+### Fixed
+- **Codex marks server `kimi` unavailable (no tools):** stdout used LSP `Content-Length` framing; Codex’s rmcp client expects **NDJSON** (`JSON\\n`). Logs: `Failed to parse message receive: Content-Length: … expected value at line 1 column 1` → `has_cached_tools=false`. Emit NDJSON on stdout; still accept Content-Length on stdin.
+- Harden stdin reader so partial Content-Length headers are not NDJSON-split; add chunked-header regression test.
+- Raise plugin `startup_timeout_sec` to 60.
+- Fix `.mcp.json` shape to official `"mcpServers": { … }` and relative `./scripts/kimi-mcp.mjs` + `cwd: "."`.
+
+## 0.1.2
+
+### Fixed
+- **Codex plugin MCP never injected tools:** `.mcp.json` used a bare `"kimi": {…}` object; official plugins require `"mcpServers": { "kimi": {…} }` (same as plugin-creator stub). Without this, install/enable succeeded but agents had no `kimi_setup` / `kimi_rescue`.
+- Align stdio entry with official plugins: relative `./scripts/kimi-mcp.mjs` + `"cwd": "."` (instead of only `${PLUGIN_ROOT}`).
+
+### Docs
+- Clarify `kimi_rescue` is an MCP tool name, not `kimi.exe`; reinstall-after-version-bump checklist
+
 ## 0.1.1
 
 ### Added

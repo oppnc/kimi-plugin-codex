@@ -3,7 +3,7 @@
 **Language / 语言:** [English](README.md) | [中文](README.zh-CN.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Version](https://img.shields.io/badge/version-0.1.1-green.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.1.3-green.svg)](./CHANGELOG.md)
 
 Call local **[Kimi Code](https://github.com/MoonshotAI/kimi-code)** as a subagent from **OpenAI Codex** (local CLI / IDE).
 
@@ -11,7 +11,7 @@ Kimi k3 is strong at frontend and multimodal work — and stronger inside Kimi C
 
 | | |
 | --- | --- |
-| **Version** | **0.1.1** |
+| **Version** | **0.1.3** |
 | **Host** | Local OpenAI Codex |
 | **Node** | ≥ 18.18 |
 | **Needs** | Kimi Code CLI + `kimi login` |
@@ -46,11 +46,21 @@ Enable **kimi**, restart if needed. First time: run skill **`kimi-setup`** or MC
 
 ### If MCP tools never appear
 
-Register with an absolute path (most common fix):
+1. Confirm plugin version is **0.1.3+** (`.mcp.json` must wrap servers in `"mcpServers"`; MCP stdio must not break on partial Content-Length chunks).
+2. Reinstall so the cache refreshes:
+
+```bash
+codex plugin remove kimi@kimi-plugin-codex
+codex plugin add kimi@kimi-plugin-codex
+```
+
+3. Still missing? Absolute-path global MCP:
 
 ```bash
 codex mcp add kimi -- node /absolute/path/to/kimi-plugin-codex/plugins/kimi/scripts/kimi-mcp.mjs
 ```
+
+Note: **`kimi_rescue` is an MCP tool**, not a shell command. `kimi.exe` on PATH is the Kimi Code CLI (ACP), not the Codex tool.
 
 Windows: prefer `KIMI_CLI_PATH=%USERPROFILE%\.kimi-code\bin\kimi.exe` when PATH is incomplete.
 
@@ -94,7 +104,7 @@ Errors are prefixed with `[kimi-plugin]` and include a **Fix** list.
 
 | Component | Requirement |
 | --- | --- |
-| This plugin | 0.1.1 |
+| This plugin | 0.1.3 |
 | Node | ≥ 18.18 |
 | Kimi Code | CLI with working `kimi acp`. Setup prints `compat` + version. |
 | Codex | Local only |

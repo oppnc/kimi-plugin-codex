@@ -15,7 +15,24 @@ function encodeMessage(obj) {
 function readMessages(buf) {
   const messages = [];
   let buffer = buf;
-  while (true) {
+  // Prefer NDJSON (Codex). Also accept Content-Length for older framing.
+  while (buffer.length) {
+    const asText = buffer.toString("utf8");
+    if (asText.trimStart().startsWith("{")) {
+      const nl = buffer.indexOf("\n");
+      if (nl === -1) {
+        break;
+      }
+      const line = buffer.slice(0, nl).toString("utf8").trim();
+      buffer = buffer.slice(nl + 1);
+      if (!line) continue;
+      try {
+        messages.push(JSON.parse(line));
+      } catch {
+        // ignore
+      }
+      continue;
+    }
     const headerEnd = buffer.indexOf("\r\n\r\n");
     if (headerEnd === -1) {
       break;
@@ -80,4 +97,36 @@ test("mcp server initialize + tools/list", async () => {
   assert.ok(names.includes("kimi_task_start"));
   assert.ok(names.includes("kimi_setup"));
   assert.ok(names.includes("kimi_result"));
+});
+
+test("mcp Content-Length survives partial header chunks", async () => {
+  const child = spawn(process.execPath, [mcpScript], {
+    stdio: ["pipe", "pipe", "pipe"],
+    windowsHide: true,
+  });
+
+  let stdout = Buffer.alloc(0);
+  child.stdout.on("data", (c) => {
+    stdout = Buffer.concat([stdout, c]);
+  });
+
+  const full = encodeMessage({
+    jsonrpc: "2.0",
+    id: 7,
+    method: "initialize",
+    params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "chunk", version: "0" } },
+  });
+
+  // Split after first line so NDJSON fallback would previously drop Content-Length.
+  const splitAt = full.indexOf("\n") + 1;
+  child.stdin.write(full.slice(0, splitAt));
+  await new Promise((r) => setTimeout(r, 30));
+  child.stdin.write(full.slice(splitAt));
+  await new Promise((r) => setTimeout(r, 300));
+  child.stdin.end();
+  await new Promise((resolve) => child.on("close", resolve));
+
+  const { messages } = readMessages(stdout);
+  const init = messages.find((m) => m.id === 7);
+  assert.equal(init?.result?.serverInfo?.name, "kimi-plugin-codex");
 });

@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 /**
  * Minimal stdio MCP server for kimi-plugin-codex (zero npm deps).
- * Framing: MCP Content-Length headers (LSP-style).
+ *
+ * Framing: **NDJSON** (one JSON object per line) on stdout — required by Codex's
+ * rmcp client. Content-Length/LSP responses are rejected as
+ * `Parse error … expected value at line 1 column 1` and the server is marked
+ * unavailable (no kimi_* tools). Readers still accept Content-Length inbound
+ * for compatibility with older clients/tests.
+ *
  * Tools shell out to kimi-companion.mjs with --json.
  *
  * Primary subagent path: kimi_rescue (start + wait for result).
@@ -17,12 +23,11 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const COMPANION = join(__dirname, "kimi-companion.mjs");
 const SERVER_NAME = "kimi-plugin-codex";
-const SERVER_VERSION = "0.1.1";
+const SERVER_VERSION = "0.1.3";
 
 function writeMessage(obj) {
-  const body = JSON.stringify(obj);
-  const header = `Content-Length: ${Buffer.byteLength(body, "utf8")}\r\n\r\n`;
-  process.stdout.write(header + body);
+  // Codex rmcp: NDJSON only. Do not emit Content-Length headers on stdout.
+  process.stdout.write(`${JSON.stringify(obj)}\n`);
 }
 
 function okResult(id, result) {
@@ -515,61 +520,97 @@ async function handleRequest(msg) {
   errResult(id, -32601, `Method not found: ${method}`);
 }
 
-// --- Content-Length reader ---
+// --- stdio reader: Content-Length (LSP/MCP) first; NDJSON only when clearly JSON ---
 let buffer = Buffer.alloc(0);
+
+function dispatchMessage(msg) {
+  Promise.resolve(handleRequest(msg)).catch((error) => {
+    if (msg?.id !== undefined && msg?.id !== null) {
+      errResult(msg.id, -32603, error?.message || String(error));
+    }
+  });
+}
+
+function bufferHeadLooksLikeContentLength(buf) {
+  // Never NDJSON-split an in-progress Content-Length frame (partial headers used to
+  // drop the "Content-Length:" line and break Codex handshake → 30s timeout, no tools).
+  const head = buf.subarray(0, Math.min(buf.length, 48)).toString("utf8").trimStart();
+  return /^content-length\s*:/i.test(head);
+}
+
+function bufferHeadLooksLikeJson(buf) {
+  const head = buf.subarray(0, Math.min(buf.length, 8)).toString("utf8").trimStart();
+  return head.startsWith("{");
+}
 
 process.stdin.on("data", (chunk) => {
   buffer = Buffer.concat([buffer, chunk]);
-  while (true) {
-    const headerEnd = buffer.indexOf("\r\n\r\n");
-    if (headerEnd === -1) {
-      // Fallback: NDJSON line (some clients)
+  while (buffer.length) {
+    if (bufferHeadLooksLikeContentLength(buffer) || buffer.indexOf(Buffer.from("Content-Length:")) === 0) {
+      const headerEnd = buffer.indexOf("\r\n\r\n");
+      if (headerEnd === -1) {
+        // Wait for full headers — do not fall through to NDJSON.
+        break;
+      }
+      const header = buffer.subarray(0, headerEnd).toString("utf8");
+      const match = /Content-Length:\s*(\d+)/i.exec(header);
+      if (!match) {
+        // Malformed header block; skip separator and keep scanning.
+        buffer = buffer.subarray(headerEnd + 4);
+        continue;
+      }
+      const len = Number(match[1]);
+      const bodyStart = headerEnd + 4;
+      if (buffer.length < bodyStart + len) {
+        break;
+      }
+      const body = buffer.subarray(bodyStart, bodyStart + len).toString("utf8");
+      buffer = buffer.subarray(bodyStart + len);
+      try {
+        dispatchMessage(JSON.parse(body));
+      } catch {
+        // ignore malformed body
+      }
+      continue;
+    }
+
+    if (bufferHeadLooksLikeJson(buffer)) {
       const nl = buffer.indexOf("\n");
       if (nl === -1) {
         break;
       }
       const line = buffer.subarray(0, nl).toString("utf8").trim();
       buffer = buffer.subarray(nl + 1);
-      if (!line || line.toLowerCase().startsWith("content-length:")) {
+      if (!line) {
         continue;
       }
       try {
-        const msg = JSON.parse(line);
-        Promise.resolve(handleRequest(msg)).catch((error) => {
-          if (msg?.id !== undefined && msg?.id !== null) {
-            errResult(msg.id, -32603, error?.message || String(error));
-          }
-        });
+        dispatchMessage(JSON.parse(line));
       } catch {
         // ignore
       }
       continue;
     }
 
-    const header = buffer.subarray(0, headerEnd).toString("utf8");
-    const match = /Content-Length:\s*(\d+)/i.exec(header);
-    if (!match) {
-      buffer = buffer.subarray(headerEnd + 4);
+    // Skip leading noise until a known framing appears.
+    const cl = buffer.indexOf(Buffer.from("Content-Length:"));
+    const brace = buffer.indexOf(Buffer.from("{"));
+    let skipTo = -1;
+    if (cl !== -1 && brace !== -1) {
+      skipTo = Math.min(cl, brace);
+    } else if (cl !== -1) {
+      skipTo = cl;
+    } else if (brace !== -1) {
+      skipTo = brace;
+    }
+    if (skipTo > 0) {
+      buffer = buffer.subarray(skipTo);
       continue;
     }
-    const len = Number(match[1]);
-    const bodyStart = headerEnd + 4;
-    if (buffer.length < bodyStart + len) {
-      break;
-    }
-    const body = buffer.subarray(bodyStart, bodyStart + len).toString("utf8");
-    buffer = buffer.subarray(bodyStart + len);
-    try {
-      const msg = JSON.parse(body);
-      Promise.resolve(handleRequest(msg)).catch((error) => {
-        if (msg?.id !== undefined && msg?.id !== null) {
-          errResult(msg.id, -32603, error?.message || String(error));
-        }
-      });
-    } catch {
-      // ignore malformed
-    }
+    break;
   }
 });
 
 process.stdin.on("end", () => process.exit(0));
+// Keep process alive for stdio MCP hosts.
+process.stdin.resume();

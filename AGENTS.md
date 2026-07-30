@@ -26,7 +26,7 @@ Marketplace name: `kimi-plugin-codex` · plugin id: `kimi` → install as `kimi@
 | Local workspace | Kimi edits disk; no client FS reverse-RPC bridge |
 | Product focus | Frontend, multimodal, goals — not review pipelines |
 
-## Version (keep in sync — all **0.1.1**)
+## Version (keep in sync — all **0.1.3**)
 
 | Location | Field |
 | --- | --- |
@@ -83,15 +83,32 @@ Orphaned dead runners → `failed` + `orphaned: true`.
 
 ## Codex install / MCP pitfalls
 
-- Plugin `.mcp.json` uses `${PLUGIN_ROOT}`. If tools never appear, register absolute path:
+- **`.mcp.json` shape must be official:** wrap servers under top-level `"mcpServers": { ... }` (not bare `"kimi": { ... }`). Codex plugin-creator stubs this as `{"mcpServers": {}}`. Wrong shape → plugin installs but **no `kimi_*` tools** for the agent.
+- Prefer relative entry like official stdio plugins:
+
+```json
+{
+  "mcpServers": {
+    "kimi": {
+      "command": "node",
+      "args": ["./scripts/kimi-mcp.mjs"],
+      "cwd": ".",
+      "tool_timeout_sec": 600
+    }
+  }
+}
+```
+
+- If tools still never appear after reinstall, register absolute path:
 
 ```bash
 codex mcp add kimi -- node /absolute/path/to/kimi-plugin-codex/plugins/kimi/scripts/kimi-mcp.mjs
 ```
 
-- Plugin sets `tool_timeout_sec = 600` in `.mcp.json`. Raise further in `~/.codex/config.toml` if needed (plugin key may vary).
+- After changing plugin `version` / MCP config: `codex plugin remove kimi@kimi-plugin-codex` then `codex plugin add kimi@kimi-plugin-codex` so the cache under `~/.codex/plugins/cache/` refreshes.
+- Plugin sets `tool_timeout_sec = 600` in `.mcp.json`. Raise further in `~/.codex/config.toml` if needed.
 - Prefer MCP tools over shelling to companion (sandbox friction).
-- Strict sandbox / headless `codex exec` may cancel MCP tools in some versions — compare interactive TUI.
+- `kimi_rescue` is an **MCP tool name**, not a shell binary (`kimi.exe` is separate).
 - Windows: prefer native `%USERPROFILE%\.kimi-code\bin\kimi.exe`; set `KIMI_CLI_PATH` if PATH is incomplete.
 
 Optional config sketch:
