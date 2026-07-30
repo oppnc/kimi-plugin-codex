@@ -2,8 +2,12 @@ export function renderSetupReport(report) {
   const lines = [
     "Kimi Plugin Codex — setup",
     "─────────────────────────",
+    `plugin      : ${report.pluginVersion || "-"}`,
+    `node        : ${report.nodeVersion || process.version}`,
+    `workspace   : ${report.workspace?.cwd || "-"} (${report.workspace?.source || "?"}${report.workspace?.envKey ? `:${report.workspace.envKey}` : ""})`,
     `kimi binary : ${report.kimiBin || "(not found)"}`,
     `version     : ${report.version || "(unknown)"}`,
+    `compat      : ${report.compat?.level || "-"}`,
     `acp probe   : ${report.acpOk ? "ok" : "FAILED"}`,
     `agent       : ${[report.agentName, report.agentVersion].filter(Boolean).join(" ") || "-"}`,
   ];
@@ -22,6 +26,18 @@ export function renderSetupReport(report) {
       lines.push(`- ${h}`);
     }
   }
+  if (report.compat?.notes?.length) {
+    lines.push("", "Compatibility:");
+    for (const n of report.compat.notes) {
+      lines.push(`- ${n}`);
+    }
+  }
+  if (report.nextSteps?.length) {
+    lines.push("", "Next (first verify):");
+    for (const n of report.nextSteps) {
+      lines.push(`- ${n}`);
+    }
+  }
   return `${lines.join("\n")}\n`;
 }
 
@@ -37,8 +53,50 @@ export function renderTaskResult(result) {
   if (result.jobId) {
     lines.push(`job: ${result.jobId}`);
   }
+  if (result.cwd) {
+    lines.push(`cwd: ${result.cwd}`);
+  }
+  if (result.mediaNotes?.length) {
+    lines.push(`media: ${result.mediaNotes.join("; ")}`);
+  }
   lines.push("");
-  lines.push(result.text?.trim() || "(no agent text)");
+  const body = result.text?.trim();
+  if (body) {
+    lines.push(body);
+  } else {
+    lines.push("(no agent text)");
+    if (result.emptyAgentText || result.emptyRetried || result.emptyRecoveryNudged) {
+      lines.push(
+        "",
+        "note: Kimi ACP ended with stop=end_turn but streamed no agent_message_chunk",
+        "      (and no tool calls). This is an empty completion from Kimi, not a clarifying question.",
+        "      Hosts should treat this as a failed handoff and re-dispatch (exit code is non-zero).",
+      );
+      if (result.emptyRetried) {
+        lines.push(
+          `      companion already retried on a fresh session (emptyRetried=${result.emptyRetried}).`,
+        );
+      }
+      if (result.emptyRecoveryNudged) {
+        lines.push(
+          "      companion also sent a same-session empty-recovery nudge after retries.",
+        );
+      }
+    }
+  }
+  if (result.incompleteContinued) {
+    lines.push(
+      "",
+      `note: companion force-continued incomplete work (${result.continueCount || 1} nudge(s)` +
+        (result.incompleteReason ? `; reason=${result.incompleteReason}` : "") +
+        ").",
+    );
+    if (result.incompleteReason) {
+      lines.push(
+        "      If the objective still looks unfinished, resume with --resume and the same session.",
+      );
+    }
+  }
   if (result.toolCalls?.length) {
     lines.push("");
     lines.push(`tool events: ${result.toolCalls.length}`);

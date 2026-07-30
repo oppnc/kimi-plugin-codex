@@ -1,0 +1,5 @@
+interface:
+  display_name: "Kimi Code Sessions"
+  short_description: "Args: --cwd, --all, --json. List Kimi ACP sessions. Not for normal frontend (use $kimi:rescue)."
+policy:
+  allow_implicit_invocation: false

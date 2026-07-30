@@ -1,9 +1,9 @@
 {
   "name": "kimi-plugin-codex",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "OpenAI Codex plugin that runs local Kimi Code as a subagent over ACP (MCP + skills).",
+  "description": "OpenAI Codex plugin that runs local Kimi Code as a subagent over ACP (skills + companion only; no MCP).",
   "license": "MIT",
   "author": "oppnc",
   "homepage": "https://github.com/oppnc/kimi-plugin-codex#readme",
@@ -18,7 +18,7 @@
     "node": ">=18.18.0"
   },
   "scripts": {
-    "test": "node --test tests/args.test.mjs tests/permissions.test.mjs tests/state.test.mjs tests/media.test.mjs tests/process.test.mjs tests/mcp-smoke.test.mjs",
+    "test": "node --test tests/args.test.mjs tests/permissions.test.mjs tests/state.test.mjs tests/media.test.mjs tests/process.test.mjs tests/errors.test.mjs tests/workspace.test.mjs tests/skills-contracts.test.mjs tests/prompt.test.mjs tests/turn-policy.test.mjs tests/host-free-attack.test.mjs",
     "smoke": "node scripts/smoke.mjs",
     "setup": "node plugins/kimi/scripts/kimi-companion.mjs setup",
     "companion": "node plugins/kimi/scripts/kimi-companion.mjs"
@@ -30,7 +30,6 @@
     "openai-codex",
     "chatgpt",
     "acp",
-    "mcp",
     "subagent",
     "plugin"
   ]

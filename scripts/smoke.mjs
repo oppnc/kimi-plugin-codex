@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Lightweight smoke: companion --help + MCP initialize (no kimi login required).
+ * Lightweight smoke: companion --help + skill contracts (no kimi login required).
  */
 import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
@@ -9,7 +9,6 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const companion = join(root, "plugins", "kimi", "scripts", "kimi-companion.mjs");
-const mcp = join(root, "plugins", "kimi", "scripts", "kimi-mcp.mjs");
 
 function run(cmd, args) {
   return new Promise((resolve, reject) => {
@@ -26,5 +25,9 @@ function run(cmd, args) {
 }
 
 await run(process.execPath, [companion, "--help"]);
-await run(process.execPath, ["--test", join(root, "tests", "mcp-smoke.test.mjs")]);
+await run(process.execPath, [
+  "--test",
+  join(root, "tests", "skills-contracts.test.mjs"),
+  join(root, "tests", "prompt.test.mjs"),
+]);
 console.log("smoke ok (run companion setup with kimi login for full ACP probe)");

@@ -2,10 +2,13 @@
  * Load local media files into ACP prompt content blocks.
  * Images → { type: 'image', mimeType, data (base64) }
  * Video/other → text path hint so Kimi can ReadMediaFile (ACP image-only for binary).
+ *
+ * Path resolution is agent-facing: try workspace cwd first, then process.cwd().
  */
 
 import fs from "node:fs";
 import path from "node:path";
+import { mediaNotFileError, mediaNotFoundError } from "./errors.mjs";
 
 const IMAGE_EXT = new Map([
   [".png", "image/png"],
@@ -48,31 +51,66 @@ export function isVideoPath(filePath) {
 }
 
 /**
+ * Resolve a media path for agents: absolute as-is; relative against opts.cwd then process.cwd().
+ * @param {string} raw
+ * @param {{ cwd?: string }} [opts]
+ * @returns {{ filePath: string|null, tried: string[], raw: string }}
+ */
+export function resolveMediaPath(raw, opts = {}) {
+  const input = String(raw ?? "").trim();
+  const tried = [];
+  if (!input) {
+    return { filePath: null, tried, raw: input };
+  }
+  if (path.isAbsolute(input)) {
+    const abs = path.resolve(input);
+    tried.push(abs);
+    return { filePath: fs.existsSync(abs) ? abs : null, tried, raw: input };
+  }
+  const base = opts.cwd ? path.resolve(opts.cwd) : process.cwd();
+  const fromCwd = path.resolve(base, input);
+  tried.push(fromCwd);
+  if (fs.existsSync(fromCwd)) {
+    return { filePath: fromCwd, tried, raw: input };
+  }
+  const fromProc = path.resolve(process.cwd(), input);
+  if (fromProc !== fromCwd) {
+    tried.push(fromProc);
+    if (fs.existsSync(fromProc)) {
+      return { filePath: fromProc, tried, raw: input };
+    }
+  }
+  return { filePath: null, tried, raw: input };
+}
+
+/**
  * @param {string[]} paths
- * @param {{ maxImageBytes?: number }} [opts]
+ * @param {{ maxImageBytes?: number, cwd?: string }} [opts]
  * @returns {{ blocks: object[], notes: string[], errors: string[] }}
  */
 export function buildMediaPromptParts(paths, opts = {}) {
   const maxImageBytes = opts.maxImageBytes ?? DEFAULT_MAX_IMAGE_BYTES;
+  const cwd = opts.cwd ? path.resolve(opts.cwd) : process.cwd();
   const blocks = [];
   const notes = [];
   const errors = [];
 
   for (const raw of paths || []) {
-    const filePath = path.resolve(String(raw).trim());
-    if (!fs.existsSync(filePath)) {
-      errors.push(`media not found: ${filePath}`);
+    const { filePath, tried, raw: input } = resolveMediaPath(raw, { cwd });
+    if (!filePath) {
+      errors.push(
+        mediaNotFoundError(input, tried[0] || input, { cwd, tried }),
+      );
       continue;
     }
     const stat = fs.statSync(filePath);
     if (!stat.isFile()) {
-      errors.push(`not a file: ${filePath}`);
+      errors.push(mediaNotFileError(filePath));
       continue;
     }
 
     if (isImagePath(filePath)) {
       if (stat.size > maxImageBytes) {
-        // Too large to embed — point Kimi at the path instead.
         notes.push(
           `Image too large to embed (${stat.size} bytes): ${filePath}. Use ReadMediaFile on this path.`,
         );
@@ -90,7 +128,6 @@ export function buildMediaPromptParts(paths, opts = {}) {
     }
 
     if (isVideoPath(filePath)) {
-      // ACP promptCapabilities.image only — video goes as path for ReadMediaFile.
       notes.push(`video path for ReadMediaFile: ${filePath}`);
       blocks.push({
         type: "text",
@@ -101,8 +138,6 @@ export function buildMediaPromptParts(paths, opts = {}) {
       continue;
     }
 
-    // SVG is an image but not reliably supported as an ACP image block —
-    // hand Kimi the path instead of embedding base64.
     if (path.extname(filePath).toLowerCase() === ".svg") {
       notes.push(`svg path (not embedded): ${filePath}`);
       blocks.push({
@@ -114,7 +149,6 @@ export function buildMediaPromptParts(paths, opts = {}) {
       continue;
     }
 
-    // Generic file — resource-style text wrapper
     notes.push(`file path: ${filePath}`);
     blocks.push({
       type: "text",

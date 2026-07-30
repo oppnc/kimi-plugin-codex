@@ -11,10 +11,20 @@ import readline from "node:readline";
 
 import { permissionPolicyForMode, pickPermissionOptionId } from "./permissions.mjs";
 import { spawnKimiAcp, terminateProcessTree } from "./process.mjs";
+import {
+  buildContinueNudge,
+  buildEmptyRecoveryNudge,
+  isContinueStagnant,
+  isEmptyTurn,
+  looksIncompleteTurn,
+  MAX_CONTINUE_NUDGES,
+  MAX_EMPTY_RETRIES,
+  mergeTurnResults,
+} from "./turn-policy.mjs";
 
 /** Handshake / config only — not used for session/prompt work. */
 const INIT_TIMEOUT_MS = 60 * 1000;
-const PLUGIN_VERSION = "0.1.0";
+const PLUGIN_VERSION = "0.2.0";
 
 /** Positive ms → enforce; null/undefined/≤0 → no ACP request deadline. */
 function normalizeRequestTimeoutMs(value) {
@@ -411,7 +421,9 @@ export class KimiAcpClient {
       this.toolCalls.push({
         phase: "start",
         title: update.title || update.toolCallId || "tool",
+        toolCallId: update.toolCallId || null,
         status: update.status || null,
+        kind: update.kind || null,
       });
       return;
     }
@@ -419,7 +431,9 @@ export class KimiAcpClient {
       this.toolCalls.push({
         phase: "update",
         title: update.title || update.toolCallId || "tool",
+        toolCallId: update.toolCallId || null,
         status: update.status || null,
+        kind: update.kind || null,
       });
     }
   }
@@ -427,10 +441,16 @@ export class KimiAcpClient {
 
 /**
  * One-shot or resume turn.
+ *
+ * Mode A: empty end_turn (no text, no tools) → fresh-session retry (new only).
+ * Mode B: plan/read-only premature stop on action tasks → same-session continue nudge.
+ *
  * @param {object} opts
  * @param {'new'|'load'|'resume'} [opts.sessionMode]
  * @param {string|null} [opts.sessionId]
  * @param {object[]} [opts.extraBlocks]
+ * @param {boolean} [opts.asGoal]
+ * @param {boolean} [opts.forceContinue] - override Mode B (default: env / on)
  */
 export async function runKimiAcpTurn(opts) {
   const {
@@ -445,11 +465,13 @@ export async function runKimiAcpTurn(opts) {
     sessionId = null,
     extraBlocks = [],
     mcpServers = [],
+    asGoal = false,
+    forceContinue,
     onLog,
     onUpdate,
   } = opts;
 
-  const client = new KimiAcpClient({
+  const clientOpts = {
     kimiBin,
     cwd,
     mode,
@@ -460,10 +482,13 @@ export async function runKimiAcpTurn(opts) {
     mcpServers,
     onLog,
     onUpdate,
-  });
+  };
+
+  /** @type {KimiAcpClient|null} */
+  let client = new KimiAcpClient(clientOpts);
 
   try {
-    const init = await client.start();
+    let initOut = await client.start();
     if (sessionMode === "load") {
       if (!sessionId) {
         throw new Error("sessionMode=load requires sessionId");
@@ -478,17 +503,133 @@ export async function runKimiAcpTurn(opts) {
       await client.newSession();
     }
 
-    const result = await client.prompt(prompt, { extraBlocks });
+    let result = await client.prompt(prompt, { extraBlocks });
+    let configOptions = client.configOptions;
+    let stderrTail = client.stderr.slice(-4000);
+    let emptyRetried = false;
+    let emptyRecoveryNudged = false;
+    let continueCount = 0;
+    let incompleteContinued = false;
+    /** @type {string|null} */
+    let incompleteReason = null;
+
+    // ── Mode A: empty completion ──────────────────────────────────────────
+    // Kimi Code intermittently returns stopReason=end_turn with *zero*
+    // agent_message_chunk / tool_call events (Moonshot #1485). Instrumented
+    // runs: empty turns only see available_commands_update + config_option_update.
+    // Not a host readline race. Retry on a brand-new session (new only).
+    // Peer note: Claude ACP can reassemble message.result; Kimi empty turns
+    // have no recoverable body — only retry + same-session recovery nudge.
+    if (isEmptyTurn(result) && sessionMode === "new") {
+      for (
+        let attempt = 1;
+        attempt <= MAX_EMPTY_RETRIES && isEmptyTurn(result);
+        attempt++
+      ) {
+        emptyRetried = true;
+        onLog?.(
+          `empty ACP agent text (no agent_message_chunk); retry ${attempt}/${MAX_EMPTY_RETRIES} on a new session`,
+        );
+        await client.close();
+        client = new KimiAcpClient(clientOpts);
+        initOut = await client.start();
+        await client.newSession();
+        // Media blocks re-sent on each fresh session (new session has no prior context).
+        result = await client.prompt(prompt, { extraBlocks });
+        configOptions = client.configOptions;
+        stderrTail = client.stderr.slice(-4000);
+      }
+
+      // Same-session recovery (Copilot/OpenDev-style synthetic continue for empty).
+      // Only after fresh-session retries still empty; one shot, then surface failure.
+      if (isEmptyTurn(result) && client && !client.closed) {
+        emptyRecoveryNudged = true;
+        onLog?.(
+          "empty ACP agent text after fresh-session retries; same-session empty recovery nudge",
+        );
+        const recovered = await client.prompt(buildEmptyRecoveryNudge());
+        stderrTail = client.stderr.slice(-4000);
+        result = mergeTurnResults(result, recovered);
+        // If still empty after merge, keep empty signature for host.
+        if (
+          !String(result.text || "").trim() &&
+          (!result.toolCalls || result.toolCalls.length === 0)
+        ) {
+          result = {
+            ...result,
+            text: "",
+            toolCalls: result.toolCalls || [],
+            stopReason: result.stopReason || "end_turn",
+          };
+        }
+      }
+    }
+
+    // ── Mode B: force continue on incomplete action work ──────────────────
+    // Same session (not fresh): peers inject a synthetic nudge when the model
+    // stops after plan text or read-only tools without mutating the workspace.
+    // Skip plan mode (plan text is the deliverable). Disable via forceContinue:false
+    // or KIMI_FORCE_CONTINUE=0.
+    const modeBCtx = {
+      prompt,
+      mode,
+      asGoal,
+      enabled: forceContinue,
+    };
+    let incomplete = looksIncompleteTurn(result, modeBCtx);
+    while (
+      incomplete.incomplete &&
+      continueCount < MAX_CONTINUE_NUDGES &&
+      client &&
+      !client.closed
+    ) {
+      incompleteReason = incomplete.reason;
+      const prevSnapshot = {
+        text: result.text,
+        toolCalls: result.toolCalls,
+      };
+      continueCount += 1;
+      incompleteContinued = true;
+      const nudge = buildContinueNudge(incomplete.reason);
+      onLog?.(
+        `incomplete ACP turn (${incomplete.reason}); continue nudge ${continueCount}/${MAX_CONTINUE_NUDGES}`,
+      );
+      const next = await client.prompt(nudge);
+      stderrTail = client.stderr.slice(-4000);
+      if (isContinueStagnant(prevSnapshot, next)) {
+        onLog?.("continue nudge stagnant (no new tools / no progress); stop Mode B");
+        result = mergeTurnResults(result, next);
+        break;
+      }
+      result = mergeTurnResults(result, next);
+      incomplete = looksIncompleteTurn(result, modeBCtx);
+      if (!incomplete.incomplete) {
+        incompleteReason = null;
+      }
+    }
+
+    if (incomplete.incomplete && incomplete.reason) {
+      incompleteReason = incomplete.reason;
+    }
+
     return {
-      init,
+      init: initOut,
       ...result,
-      configOptions: client.configOptions,
+      configOptions,
       mode,
       sessionMode,
-      stderrTail: client.stderr.slice(-4000),
+      emptyAgentText: isEmptyTurn(result),
+      emptyRetried,
+      emptyRecoveryNudged,
+      incompleteContinued,
+      continueCount,
+      incompleteReason,
+      stderrTail,
     };
   } finally {
-    await client.close();
+    if (client) {
+      await client.close();
+    }
   }
 }
 

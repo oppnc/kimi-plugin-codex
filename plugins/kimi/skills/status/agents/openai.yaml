@@ -1,0 +1,5 @@
+interface:
+  display_name: "Kimi Code Status"
+  short_description: "Args: [job-id], --wait, --all. List or inspect tracked Kimi Code jobs."
+policy:
+  allow_implicit_invocation: false
