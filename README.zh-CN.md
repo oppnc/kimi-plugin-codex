@@ -3,7 +3,7 @@
 **Language / 语言:** [English](README.md) | [中文](README.zh-CN.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Version](https://img.shields.io/badge/version-0.1.3-green.svg)](./CHANGELOG.zh-CN.md)
+[![Version](https://img.shields.io/badge/version-0.1.4-green.svg)](./CHANGELOG.zh-CN.md)
 
 在 **OpenAI Codex**（本地 CLI / IDE）里，把 **[Kimi Code](https://github.com/MoonshotAI/kimi-code)** 当作 subagent 调用。
 
@@ -11,26 +11,28 @@ Kimi k3 前端、多模态更强；在 Kimi Code 里更强。本插件是 **薄 
 
 | | |
 | --- | --- |
-| **版本** | **0.1.3** |
+| **版本** | **0.1.4** |
 | **宿主** | 本地 OpenAI Codex |
 | **Node** | ≥ 18.18 |
 | **依赖** | Kimi Code CLI + `kimi login` |
 
 Claude Code / Grok 请用 **[kimi-plugin-cc](https://github.com/oppnc/kimi-plugin-cc)**。
 
-## 主路径
+## 主路径（含长前端）
 
 | | |
 | --- | --- |
-| **工具** | MCP **`kimi_rescue`**（skill **`kimi-delegate`** 优先走它） |
-| **适用** | 前端/UI、CSS/布局、截图/**视频** 问题、多文件实现 |
-| **说法** | 让 Codex 把任务交给 Kimi，**原文回传**结果 |
+| **工具** | MCP **`kimi_rescue`** → `still_running` 时轮询 **`kimi_status` / `kimi_result`** |
+| **适用** | 前端/UI、CSS/布局、截图/**视频**、多文件实现 |
+| **说法** | 交给 Kimi；**等待切片结束 ≠ 失败**，继续 poll 直到 completed |
+
+`kimi_rescue` 会起 **后台 job**，默认先等约 **120s**；长 UI 常需多轮 poll，或 `resume` + 新截图。
 
 示例：
 
-> 用 kimi_rescue 实现一个小的响应式 settings 区块（用现有 design tokens）。把 Kimi 的结果原文给我。
+> 用 kimi_rescue 做这个前端任务。若 still_running，继续 poll 直到完成；结果原文返回。后续截图用 resume:true + image。
 
-高级工具（start/status/result）见 [AGENTS.md](AGENTS.md)。
+详见 [AGENTS.md](AGENTS.md)。
 
 ## 安装
 
@@ -46,7 +48,7 @@ codex plugin add kimi@kimi-plugin-codex
 
 ### MCP 工具一直不出现
 
-1. 确认版本 **0.1.3+**（`.mcp.json` 必须包在 `"mcpServers"` 下；stdio 半包 Content-Length 不得被拆坏）。
+1. 确认版本 **0.1.4+**（`mcpServers` + NDJSON；长任务用 job + 轮询）。
 2. 重装刷新缓存：
 
 ```bash
@@ -104,7 +106,7 @@ node plugins/kimi/scripts/kimi-companion.mjs task --mode yolo -- "Reply with exa
 
 | 组件 | 要求 |
 | --- | --- |
-| 本插件 | 0.1.3 |
+| 本插件 | 0.1.4 |
 | Node | ≥ 18.18 |
 | Kimi Code | 支持 `kimi acp` 的 CLI |
 | Codex | 仅本地 |

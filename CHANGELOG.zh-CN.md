@@ -2,6 +2,14 @@
 
 **Language / 语言:** [English](CHANGELOG.md) | [中文](CHANGELOG.zh-CN.md)
 
+## 0.1.4
+
+### 变更
+- **长前端任务一等公民：** `kimi_rescue` 默认只等 **120s** 一片；超时返回 `still_running` + `jobId` + `next_actions`，**不是失败**。继续用 `kimi_status` / `kimi_result` 轮询。
+- status/result 支持 `wait_timeout_ms`（默认 180s 一片）。
+- MCP `tool_timeout_sec` 提到 **900**。
+- Skill 写明 job + 轮询 + resume+截图多轮（对齐官方/社区 background job 模式）。
+
 ## 0.1.3
 
 ### 修复

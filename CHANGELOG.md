@@ -2,6 +2,14 @@
 
 **Language / 语言:** [English](CHANGELOG.md) | [中文](CHANGELOG.zh-CN.md)
 
+## 0.1.4
+
+### Changed
+- **Long frontend work is first-class:** `kimi_rescue` default wait slice is **120s** (was 540s hard-block). Ending a slice returns `still_running` + `jobId` + `next_actions` — not failure. Host should poll `kimi_status` / `kimi_result`.
+- `kimi_status` / `kimi_result` accept `wait_timeout_ms` (default poll slice 180s); enrich running status with next_actions.
+- MCP `tool_timeout_sec` raised to **900**.
+- Skill `kimi-delegate` documents job + poll + resume+image multi-round UI loop (aligned with codex-plugin-cc / cc-plugin-codex background job pattern).
+
 ## 0.1.3
 
 ### Fixed

@@ -20,8 +20,11 @@ Call MCP tool **`kimi_setup`** and show the report to the user (ok / binary / wo
 
 ## After setup ok — first verify
 
-Ask Codex to run **`kimi_rescue`** with a small **frontend** task, for example:
+1. **Smoke (short):** `kimi_rescue` with prompt `Reply with exactly: kimi-bridge-ok` — expect `text` and `still_running: false`.
+2. **Long-work habit:** for real frontend work, if `still_running: true`, poll `kimi_status` / `kimi_result` with `jobId` until done. Wait-slice end is **not** failure.
 
-> Use kimi_rescue to implement a small responsive settings section using existing design tokens. Return Kimi’s result verbatim.
+Example:
+
+> Use kimi_rescue to implement a small responsive settings section using existing design tokens. If still_running, keep polling until completed; return Kimi’s text verbatim.
 
 Local Codex only — not Codex Cloud. Maintainer details: repo `AGENTS.md`.

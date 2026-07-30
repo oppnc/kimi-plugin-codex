@@ -10,20 +10,31 @@
  *
  * Tools shell out to kimi-companion.mjs with --json.
  *
- * Primary subagent path: kimi_rescue (start + wait for result).
- * Fallback for multi-MCP-timeout work: kimi_task_start → kimi_status → kimi_result.
- * Codex default tool_timeout_sec is 60s unless raised (plugin .mcp.json sets 600).
+ * Long frontend work (screenshots, multi-file UI) is first-class:
+ *   kimi_rescue starts a background job, waits a SHORT slice, then returns
+ *   still_running + jobId so the host polls kimi_status / kimi_result.
+ *   Never treat MCP tool timeout as "Kimi failed" — only as "wait slice ended".
+ *
+ * Primary: kimi_rescue (+ poll if still_running).
+ * Immediate detach: kimi_task_start / kimi_goal_start → poll.
+ * Codex default tool_timeout_sec is 60s unless raised (plugin .mcp.json).
  */
 
 import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import {
+  DEFAULT_POLL_WAIT_MS,
+  DEFAULT_RESCUE_WAIT_MS,
+  MAX_RESCUE_WAIT_MS,
+  resolveWaitMs,
+} from "./lib/wait.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const COMPANION = join(__dirname, "kimi-companion.mjs");
 const SERVER_NAME = "kimi-plugin-codex";
-const SERVER_VERSION = "0.1.3";
+const SERVER_VERSION = "0.1.4";
 
 function writeMessage(obj) {
   // Codex rmcp: NDJSON only. Do not emit Content-Length headers on stdout.
@@ -114,11 +125,11 @@ const TOOLS = [
   {
     name: "kimi_rescue",
     description:
-      "PRIMARY happy path: hand frontend/UI, screenshot or video visual bugs, multimodal, or multi-file " +
-      "implementation to local Kimi Code (subagent) and wait for its result. " +
-      "Prefer this over implementing frontend/UI yourself when Kimi is available. " +
-      "Forwards the user task over ACP (Kimi keeps tools/models/skills). " +
-      "If still running when the wait budget ends, returns job_id for kimi_status/kimi_result.",
+      "PRIMARY: hand frontend/UI, screenshot/video bugs, multimodal, or multi-file work to local Kimi Code. " +
+      "Starts a durable background job, waits a short slice (default 120s), then returns JSON. " +
+      "If still_running=true, KEEP polling kimi_status/kimi_result with jobId — do NOT reimplement, " +
+      "and do NOT treat wait-slice end as failure. Long UI work often needs several poll rounds or " +
+      "resume+image follow-ups. Prefer this over implementing frontend yourself.",
     inputSchema: {
       type: "object",
       properties: {
@@ -134,7 +145,8 @@ const TOOLS = [
         wait_timeout_ms: {
           type: "number",
           description:
-            "Max ms to wait for the subagent (default 540000). Stay under Codex MCP tool_timeout_sec.",
+            `First wait slice ms (default ${DEFAULT_RESCUE_WAIT_MS}, max ${MAX_RESCUE_WAIT_MS}). ` +
+            "Not a hard kill of Kimi — only how long this tool call blocks. Use polls for long work.",
         },
       },
       additionalProperties: false,
@@ -143,9 +155,9 @@ const TOOLS = [
   {
     name: "kimi_task_start",
     description:
-      "Start Kimi Code in the background and return job_id immediately. " +
-      "Use only when kimi_rescue wait budget is too short or the user asked to detach. " +
-      "Then poll kimi_status / kimi_result.",
+      "Start Kimi in the background and return job_id immediately (no wait). " +
+      "Use for long frontend/implement work when you prefer not to block, then poll kimi_status/kimi_result. " +
+      "Equivalent to kimi_rescue with wait_timeout_ms=1 when you only need the job id.",
     inputSchema: {
       type: "object",
       properties: {
@@ -162,7 +174,7 @@ const TOOLS = [
   {
     name: "kimi_goal_start",
     description:
-      "Start a long-horizon Kimi Goal in the background (subagent). Returns job_id. Prefer kimi_rescue with goal=true when wait budget allows.",
+      "Start a long-horizon Kimi Goal in the background; returns job_id immediately. Poll status/result.",
     inputSchema: {
       type: "object",
       properties: {
@@ -176,7 +188,7 @@ const TOOLS = [
   {
     name: "kimi_task",
     description:
-      "SHORT synchronous Kimi turn only. Prefer kimi_rescue for normal work.",
+      "SHORT synchronous Kimi turn only (probes). Prefer kimi_rescue (+ poll) for real work.",
     inputSchema: {
       type: "object",
       properties: {
@@ -191,13 +203,22 @@ const TOOLS = [
   {
     name: "kimi_status",
     description:
-      "Subagent job status (phase, progress, tools). Use after kimi_task_start or if kimi_rescue timed out still running.",
+      "PRIMARY continuation for long Kimi jobs: phase, progress, tools, resultText when done. " +
+      "Call after kimi_rescue still_running or kimi_task_start. Prefer wait:true with a slice " +
+      "rather than busy-looping without wait.",
     inputSchema: {
       type: "object",
       properties: {
         job_id: { type: "string" },
         cwd: { type: "string" },
-        wait: { type: "boolean", description: "Block until job finishes (within tool timeout)." },
+        wait: {
+          type: "boolean",
+          description: "Block until job finishes or wait_timeout_ms elapses (default slice when wait).",
+        },
+        wait_timeout_ms: {
+          type: "number",
+          description: `When wait=true, max ms to block (default ${DEFAULT_POLL_WAIT_MS}, max ${MAX_RESCUE_WAIT_MS}).`,
+        },
         all: { type: "boolean" },
       },
       additionalProperties: false,
@@ -205,13 +226,18 @@ const TOOLS = [
   },
   {
     name: "kimi_result",
-    description: "Fetch stored result for a job (or latest for this workspace).",
+    description:
+      "Fetch stored result for a job (or latest). Use when status is completed, or with wait:true to block a slice.",
     inputSchema: {
       type: "object",
       properties: {
         job_id: { type: "string" },
         cwd: { type: "string" },
         wait: { type: "boolean" },
+        wait_timeout_ms: {
+          type: "number",
+          description: `When wait=true, max ms to block (default ${DEFAULT_POLL_WAIT_MS}).`,
+        },
       },
       additionalProperties: false,
     },
@@ -296,9 +322,65 @@ function parseJsonLoose(text) {
   }
 }
 
+function buildJobPayload(job, jobId, { waitedMs = null } = {}) {
+  const status = job.status || "unknown";
+  const stillRunning = status === "running";
+  const sessionId = job.sessionId || null;
+
+  let resume_hint = null;
+  let next_actions = [];
+  if (stillRunning) {
+    resume_hint =
+      "Kimi is still working (wait slice ended — NOT a failure). " +
+      "Poll kimi_status/kimi_result with this jobId until status is completed/failed/cancelled. " +
+      "Do not reimplement the task in Codex while it runs.";
+    next_actions = [
+      {
+        tool: "kimi_status",
+        args: { job_id: jobId, wait: true, wait_timeout_ms: DEFAULT_POLL_WAIT_MS },
+      },
+      { tool: "kimi_result", args: { job_id: jobId, wait: true } },
+      { tool: "kimi_cancel", args: { job_id: jobId }, when: "user aborts" },
+    ];
+  } else if (status === "completed" && sessionId) {
+    resume_hint =
+      "If the objective looks unfinished or the user provides a new screenshot, " +
+      "call kimi_rescue again with resume:true (and image/video paths when relevant).";
+    next_actions = [
+      {
+        tool: "kimi_rescue",
+        args: { resume: true, prompt: "<follow-up or screenshot fix>", mode: "yolo" },
+        when: "visual follow-up / more work",
+      },
+    ];
+  } else if (status === "failed" || status === "cancelled") {
+    resume_hint = job.error
+      ? `Job ended (${status}): ${job.error}`
+      : `Job ended (${status}).`;
+  }
+
+  return {
+    subagent: "kimi-code",
+    jobId,
+    status,
+    phase: job.phase || null,
+    sessionId,
+    stopReason: job.stopReason || null,
+    toolEventCount: job.toolEventCount ?? null,
+    lastProgressMessage: job.lastProgressMessage || null,
+    orphaned: job.orphaned || false,
+    error: job.error || null,
+    text: job.resultText || null,
+    still_running: stillRunning,
+    waited_ms: waitedMs,
+    resume_hint,
+    next_actions,
+  };
+}
+
 /**
- * One subagent handoff: start background job, wait for terminal status, return result payload.
- * If still running after wait budget, return job_id for continued polling (Codex MCP timeout).
+ * One subagent handoff: start background job, wait a SHORT slice, return result or still_running.
+ * Long frontend/UI work continues via kimi_status / kimi_result (industry pattern: job + poll).
  */
 async function rescueSubagent(args = {}) {
   const prompt = args.prompt || args.objective || "";
@@ -318,11 +400,19 @@ async function rescueSubagent(args = {}) {
     return textContent(startOut.trim() || "failed to start Kimi subagent");
   }
 
-  const waitMsRaw = Number(args.wait_timeout_ms);
-  const waitMs =
-    Number.isFinite(waitMsRaw) && waitMsRaw > 0
-      ? Math.min(waitMsRaw, 540_000)
-      : 540_000;
+  const waitMs = resolveWaitMs(args.wait_timeout_ms, DEFAULT_RESCUE_WAIT_MS);
+
+  // wait_timeout_ms <= 1 → start-only (immediate job id for pure async)
+  if (waitMs <= 1) {
+    const payload = buildJobPayload(
+      { status: "running", phase: "queued" },
+      started.jobId,
+      { waitedMs: 0 },
+    );
+    payload.resume_hint =
+      "Job started; poll kimi_status / kimi_result with jobId (no initial wait was requested).";
+    return textContent(JSON.stringify(payload, null, 2));
+  }
 
   const waitCmd = [
     "status",
@@ -340,29 +430,7 @@ async function rescueSubagent(args = {}) {
     timeoutMs: waitMs + 30_000,
   });
   const job = parseJsonLoose(statusOut) || {};
-
-  const payload = {
-    subagent: "kimi-code",
-    jobId: started.jobId,
-    status: job.status || "unknown",
-    phase: job.phase || null,
-    sessionId: job.sessionId || null,
-    stopReason: job.stopReason || null,
-    toolEventCount: job.toolEventCount ?? null,
-    lastProgressMessage: job.lastProgressMessage || null,
-    orphaned: job.orphaned || false,
-    error: job.error || null,
-    // Verbatim subagent output for the host to show the user
-    text: job.resultText || null,
-    still_running: job.status === "running",
-    resume_hint:
-      job.status === "completed" && job.sessionId
-        ? "If the objective looks unfinished, call kimi_rescue again with resume:true (or session)."
-        : job.status === "running"
-          ? "Subagent still running; poll kimi_status / kimi_result with this jobId, or call kimi_rescue wait again."
-          : null,
-  };
-
+  const payload = buildJobPayload(job, started.jobId, { waitedMs: waitMs });
   return textContent(JSON.stringify(payload, null, 2));
 }
 
@@ -407,8 +475,11 @@ async function callTool(name, args = {}) {
     }
     case "kimi_status": {
       const cmd = ["status", "--json"];
-      if (args.wait) {
-        cmd.push("--wait");
+      const pollWait = args.wait
+        ? resolveWaitMs(args.wait_timeout_ms, DEFAULT_POLL_WAIT_MS)
+        : null;
+      if (pollWait != null) {
+        cmd.push("--wait", "--wait-timeout", String(pollWait));
       }
       if (args.all) {
         cmd.push("--all");
@@ -420,14 +491,28 @@ async function callTool(name, args = {}) {
         cmd.push(args.job_id);
       }
       const { stdout } = await runCompanion(cmd, {
-        timeoutMs: args.wait ? 600_000 : 30_000,
+        timeoutMs: pollWait != null ? pollWait + 30_000 : 30_000,
       });
+      const parsed = parseJsonLoose(stdout);
+      if (parsed && parsed.id && parsed.status === "running") {
+        const enriched = buildJobPayload(parsed, parsed.id, { waitedMs: pollWait });
+        return textContent(
+          JSON.stringify(
+            { ...parsed, ...enriched, text: parsed.resultText || null },
+            null,
+            2,
+          ),
+        );
+      }
       return textContent(stdout.trim());
     }
     case "kimi_result": {
       const cmd = ["result", "--json"];
-      if (args.wait) {
-        cmd.push("--wait");
+      const pollWait = args.wait
+        ? resolveWaitMs(args.wait_timeout_ms, DEFAULT_POLL_WAIT_MS)
+        : null;
+      if (pollWait != null) {
+        cmd.push("--wait", "--wait-timeout", String(pollWait));
       }
       if (args.cwd) {
         cmd.push("--cwd", args.cwd);
@@ -436,7 +521,7 @@ async function callTool(name, args = {}) {
         cmd.push(args.job_id);
       }
       const { stdout } = await runCompanion(cmd, {
-        timeoutMs: args.wait ? 600_000 : 30_000,
+        timeoutMs: pollWait != null ? pollWait + 30_000 : 30_000,
       });
       return textContent(stdout.trim());
     }
@@ -477,10 +562,12 @@ async function handleRequest(msg) {
       serverInfo: { name: SERVER_NAME, version: SERVER_VERSION },
       instructions:
         "Local Kimi Code as a Codex subagent over ACP. " +
-        "PRIMARY: kimi_rescue — one handoff, wait for Kimi's result, return text verbatim. " +
-        "Do not reimplement Kimi system prompts; tools/models/skills stay with Kimi Code. " +
-        "If kimi_rescue is still_running, continue with kimi_status/kimi_result (or another rescue with resume). " +
-        "kimi_task_start is only for explicit detach / multi-timeout work.",
+        "PRIMARY: kimi_rescue for frontend/UI/screenshot work — starts a durable job, short wait slice, " +
+        "returns text if done OR still_running+jobId. " +
+        "If still_running: poll kimi_status/kimi_result until completed — NEVER treat wait-slice end as failure, " +
+        "and NEVER reimplement the same task in Codex while Kimi runs. " +
+        "Visual follow-ups: kimi_rescue with resume:true + image/video paths. " +
+        "Do not reimplement Kimi system prompts; tools/models/skills stay with Kimi Code.",
     });
     return;
   }

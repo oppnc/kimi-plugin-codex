@@ -3,7 +3,7 @@
 **Language / 语言:** [English](README.md) | [中文](README.zh-CN.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Version](https://img.shields.io/badge/version-0.1.3-green.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.1.4-green.svg)](./CHANGELOG.md)
 
 Call local **[Kimi Code](https://github.com/MoonshotAI/kimi-code)** as a subagent from **OpenAI Codex** (local CLI / IDE).
 
@@ -11,26 +11,28 @@ Kimi k3 is strong at frontend and multimodal work — and stronger inside Kimi C
 
 | | |
 | --- | --- |
-| **Version** | **0.1.3** |
+| **Version** | **0.1.4** |
 | **Host** | Local OpenAI Codex |
 | **Node** | ≥ 18.18 |
 | **Needs** | Kimi Code CLI + `kimi login` |
 
 For Claude Code / Grok use **[kimi-plugin-cc](https://github.com/oppnc/kimi-plugin-cc)**.
 
-## Happy path
+## Happy path (including long frontend work)
 
 | | |
 | --- | --- |
-| **Tool** | MCP **`kimi_rescue`** (skill **`kimi-delegate`** prefers this) |
+| **Tool** | MCP **`kimi_rescue`** → if `still_running`, poll **`kimi_status` / `kimi_result`** |
 | **When** | Frontend/UI, CSS/layout, screenshot/**video** bugs, multi-file implement |
-| **How** | Ask Codex to hand the task to Kimi and return the result **verbatim** |
+| **How** | Hand off to Kimi; **wait-slice end is not failure** — keep polling until completed |
 
-Example prompt to Codex:
+`kimi_rescue` starts a **durable background job**, waits ~**120s** first slice, then returns JSON. Long UI work often needs several poll rounds or `resume` + new screenshots.
 
-> Use kimi_rescue to implement a small responsive settings section using existing design tokens. Return Kimi’s result verbatim.
+Example:
 
-Advanced tools (`kimi_task_start` / status / result): see [AGENTS.md](AGENTS.md).
+> Use kimi_rescue for this frontend task. If still_running, poll kimi_status/kimi_result until done; return Kimi’s text verbatim. For later screenshots, resume:true + image paths.
+
+Details: [AGENTS.md](AGENTS.md).
 
 ## Install
 
@@ -46,7 +48,7 @@ Enable **kimi**, restart if needed. First time: run skill **`kimi-setup`** or MC
 
 ### If MCP tools never appear
 
-1. Confirm plugin version is **0.1.3+** (`.mcp.json` must wrap servers in `"mcpServers"`; MCP stdio must not break on partial Content-Length chunks).
+1. Confirm plugin version is **0.1.4+** (`.mcp.json` under `mcpServers`; NDJSON stdout; long work uses job + poll).
 2. Reinstall so the cache refreshes:
 
 ```bash
@@ -104,7 +106,7 @@ Errors are prefixed with `[kimi-plugin]` and include a **Fix** list.
 
 | Component | Requirement |
 | --- | --- |
-| This plugin | 0.1.3 |
+| This plugin | 0.1.4 |
 | Node | ≥ 18.18 |
 | Kimi Code | CLI with working `kimi acp`. Setup prints `compat` + version. |
 | Codex | Local only |

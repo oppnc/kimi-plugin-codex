@@ -26,7 +26,7 @@ Marketplace name: `kimi-plugin-codex` · plugin id: `kimi` → install as `kimi@
 | Local workspace | Kimi edits disk; no client FS reverse-RPC bridge |
 | Product focus | Frontend, multimodal, goals — not review pipelines |
 
-## Version (keep in sync — all **0.1.3**)
+## Version (keep in sync — all **0.1.4**)
 
 | Location | Field |
 | --- | --- |
@@ -62,13 +62,15 @@ kimi-plugin-codex/
 | Tool | Role |
 | --- | --- |
 | `kimi_setup` | Probe binary + ACP + models |
-| **`kimi_rescue`** | **Primary** subagent handoff (start + wait + result JSON with `text`) |
-| `kimi_task_start` / `kimi_goal_start` | Detach / multi-timeout fallback → `job_id` |
-| `kimi_status` / `kimi_result` / `kimi_cancel` | Continue or cancel |
+| **`kimi_rescue`** | **Primary** handoff: start durable job + short wait slice (default 120s) → `text` or `still_running`+`jobId` |
+| `kimi_task_start` / `kimi_goal_start` | Immediate `job_id` (no wait) |
+| `kimi_status` / `kimi_result` / `kimi_cancel` | **Continuation** for long frontend work (poll slices) |
 | `kimi_sessions` | List ACP sessions |
 | `kimi_task` | Short sync probe only |
 
-Host skill **`kimi-delegate`** should prefer `kimi_rescue` and hide job plumbing from the user.
+Host skill **`kimi-delegate`**: prefer `kimi_rescue`, then **poll while still_running** (long UI/screenshot work is normal). Wait-slice end ≠ failure.
+
+Wait budgets: `lib/wait.mjs` — default rescue 120s, poll 180s, hard cap 540s per slice. MCP `tool_timeout_sec` = 900.
 
 Job phases (status JSON): `queued` → `launching` → `starting_acp` → `running` → terminal.  
 Orphaned dead runners → `failed` + `orphaned: true`.

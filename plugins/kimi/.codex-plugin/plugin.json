@@ -1,7 +1,7 @@
 {
   "name": "kimi",
-  "version": "0.1.3",
-  "description": "Hand frontend/UI and multimodal work to local Kimi Code via ACP. Happy path: kimi_rescue.",
+  "version": "0.1.4",
+  "description": "Hand frontend/UI and multimodal work to local Kimi Code via ACP. Happy path: kimi_rescue + poll while still_running.",
   "author": {
     "name": "kimi-plugin-codex"
   },
