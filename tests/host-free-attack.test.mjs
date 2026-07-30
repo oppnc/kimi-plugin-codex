@@ -107,8 +107,12 @@ test("attack (a): Mode B incomplete + exemptions", () => {
 });
 
 // ── (b) Dual-package isomorphism ──────────────────────────────────────────
+// These checks require the sibling kimi-plugin-cc checkout (monorepo layout).
+// In CI (single-repo checkout) they skip instead of failing.
 
-test("attack (b): turn-policy isomorphic with sibling cc package", () => {
+const HAS_SIBLING = fs.existsSync(path.join(SIBLING_LIB, "turn-policy.mjs"));
+
+test("attack (b): turn-policy isomorphic with sibling cc package", { skip: !HAS_SIBLING && "sibling kimi-plugin-cc not checked out" }, () => {
   const local = path.join(LIB, "turn-policy.mjs");
   const sibling = path.join(SIBLING_LIB, "turn-policy.mjs");
   assert.ok(fs.existsSync(local), "local turn-policy");
@@ -116,7 +120,7 @@ test("attack (b): turn-policy isomorphic with sibling cc package", () => {
   assert.equal(sha256File(local), sha256File(sibling), "turn-policy byte-identical");
 });
 
-test("attack (b): acceptance.mjs isomorphic with sibling cc package", () => {
+test("attack (b): acceptance.mjs isomorphic with sibling cc package", { skip: !HAS_SIBLING && "sibling kimi-plugin-cc not checked out" }, () => {
   const local = path.join(LIB, "acceptance.mjs");
   const sibling = path.join(SIBLING_LIB, "acceptance.mjs");
   assert.ok(fs.existsSync(local));
@@ -124,7 +128,7 @@ test("attack (b): acceptance.mjs isomorphic with sibling cc package", () => {
   assert.equal(sha256File(local), sha256File(sibling));
 });
 
-test("attack (b): acp-client isomorphic after identity normalize", () => {
+test("attack (b): acp-client isomorphic after identity normalize", { skip: !HAS_SIBLING && "sibling kimi-plugin-cc not checked out" }, () => {
   const local = fs
     .readFileSync(path.join(LIB, "acp-client.mjs"), "utf8")
     .replaceAll("kimi-plugin-codex", "PKG");
