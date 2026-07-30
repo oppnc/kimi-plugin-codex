@@ -2,6 +2,18 @@
 
 **Language / 语言:** [English](CHANGELOG.md) | [中文](CHANGELOG.zh-CN.md)
 
+## 0.1.1
+
+### Added
+- **First verify** path in README + setup `nextSteps` (frontend handoff via `kimi_rescue`)
+- Setup doctor: Node version, workspace source, soft Kimi Code **compat** notes, actionable `errorCode`
+- Standardized `[kimi-plugin]` errors with numbered **Fix** lists
+- Workspace root resolution from host env; media paths resolve against workspace cwd
+
+### Changed
+- Happy path only in user docs: `kimi_rescue` for frontend/UI/screenshot/video
+- Stronger MCP/skill triggers for frontend and visual work; MCP tool descriptions updated
+
 ## 0.1.0
 
 First public release: OpenAI Codex plugin that runs local **Kimi Code** as a subagent over ACP.

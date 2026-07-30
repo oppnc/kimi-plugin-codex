@@ -3,71 +3,101 @@
 **Language / 语言:** [English](README.md) | [中文](README.zh-CN.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.1.1-green.svg)](./CHANGELOG.md)
 
-This plugin does one thing: call **[Kimi Code](https://github.com/MoonshotAI/kimi-code)** as a subagent from **OpenAI Codex / ChatGPT**.
+Call local **[Kimi Code](https://github.com/MoonshotAI/kimi-code)** as a subagent from **OpenAI Codex** (local CLI / IDE).
 
-Kimi k3 is strong at frontend and multimodal work. In its familiar environment (Kimi Code), it is even stronger. If you prefer not to live in the Kimi CLI, want to boost your main agent’s frontend ability, or want to spend limited Kimi tokens where they count — this is for you.
-
-Anyone who has used Codex / ChatGPT knows GPT’s frontend skill can feel like a first-year student from fifteen years ago — and you also have to admit that Codex / ChatGPT products are excellent, and GPT’s engineering strength is real. Now use **kimi-plugin-codex** to level up your frontend work.
-
-Thin ACP bridge only. No reimplemented system prompts. Tools, swarm, skills, and models stay with Kimi Code.
+Kimi k3 is strong at frontend and multimodal work — and stronger inside Kimi Code. This plugin is a **thin ACP bridge** (skills + MCP). Not for Codex Cloud (no local `kimi` there).
 
 | | |
 | --- | --- |
-| **Version** | **0.1.0** |
-| **Host** | OpenAI Codex / ChatGPT (local) |
+| **Version** | **0.1.1** |
+| **Host** | Local OpenAI Codex |
 | **Node** | ≥ 18.18 |
-| **Repository** | [github.com/oppnc/kimi-plugin-codex](https://github.com/oppnc/kimi-plugin-codex) |
+| **Needs** | Kimi Code CLI + `kimi login` |
 
-> Changelog: [English](CHANGELOG.md) · [中文](CHANGELOG.zh-CN.md)  
-> Security: [SECURITY.md](SECURITY.md) · Maintainers: **[AGENTS.md](AGENTS.md)**
+For Claude Code / Grok use **[kimi-plugin-cc](https://github.com/oppnc/kimi-plugin-cc)**.
 
-This is **not** the Claude Code package. For Claude Code / Grok, use **[kimi-plugin-cc](https://github.com/oppnc/kimi-plugin-cc)**.
+## Happy path
 
-## Features
-
-| Feature | How |
+| | |
 | --- | --- |
-| Full Kimi agent | `kimi acp` → `session/prompt` |
-| Modes | `default` \| `plan` \| `auto` \| `yolo` |
-| Multimodal | image / video / media paths |
-| Goals | Goal-framed handoff |
-| Resume | Continue the same Kimi session |
-| Jobs | status / result / cancel |
-| Host UX | Skill one-handoff → MCP `kimi_rescue` |
+| **Tool** | MCP **`kimi_rescue`** (skill **`kimi-delegate`** prefers this) |
+| **When** | Frontend/UI, CSS/layout, screenshot/**video** bugs, multi-file implement |
+| **How** | Ask Codex to hand the task to Kimi and return the result **verbatim** |
 
-## Requirements
+Example prompt to Codex:
 
-- Node.js ≥ 18.18
-- [Kimi Code CLI](https://github.com/MoonshotAI/kimi-code) installed and logged in (`kimi login`)
-- Local Codex (CLI or IDE). **Not Codex Cloud** (no local `kimi` there)
+> Use kimi_rescue to implement a small responsive settings section using existing design tokens. Return Kimi’s result verbatim.
+
+Advanced tools (`kimi_task_start` / status / result): see [AGENTS.md](AGENTS.md).
 
 ## Install
 
-From this repository root (marketplace at `.agents/plugins/marketplace.json`):
+Codex plugin install is **local-marketplace oriented** (host policy). Typical flow:
 
 ```bash
+# from a clone of this repo
 codex plugin marketplace add /absolute/path/to/kimi-plugin-codex
 codex plugin add kimi@kimi-plugin-codex
 ```
 
-Enable **kimi** in Codex and restart if needed. On first use, run setup / diagnostics via skill **`kimi-setup`**.
+Enable **kimi**, restart if needed. First time: run skill **`kimi-setup`** or MCP **`kimi_setup`**.
 
-To pick up a newer release: refresh the marketplace and reinstall **kimi** (Codex refreshes when declared `version` changes).
+### If MCP tools never appear
 
-If MCP tools do not appear after install, see the fallback registration in [AGENTS.md](AGENTS.md).
+Register with an absolute path (most common fix):
 
-## How to use
+```bash
+codex mcp add kimi -- node /absolute/path/to/kimi-plugin-codex/plugins/kimi/scripts/kimi-mcp.mjs
+```
 
-In Codex, hand work to Kimi when you want the subagent, for example:
+Windows: prefer `KIMI_CLI_PATH=%USERPROFILE%\.kimi-code\bin\kimi.exe` when PATH is incomplete.
 
-- Frontend / UI / visual bugs from screenshots  
-- Multi-file implementation, or when the main agent is stuck  
-- Long objectives with a clear finish line  
+## First verify (do this once)
 
-The main path is **one handoff** (`kimi_rescue`): give Kimi the task, wait, return the result **verbatim**.  
-Do not invent a system prompt for Kimi, and do not solve the same task in parallel while it runs.
+### 1) Doctor
+
+```bash
+node plugins/kimi/scripts/kimi-companion.mjs setup
+# or in Codex: kimi_setup / kimi-setup skill
+```
+
+Expect `acp probe: ok` and **Next (first verify)**.
+
+### 2) Hand a frontend task to Kimi
+
+In Codex:
+
+> Use kimi_rescue to implement a small responsive settings section using existing design tokens. Keep changes minimal. Return Kimi’s result verbatim.
+
+CLI probe:
+
+```bash
+node plugins/kimi/scripts/kimi-companion.mjs task --mode yolo -- "Reply with exactly: kimi-bridge-ok"
+```
+
+## Troubleshooting
+
+| Symptom | Fix |
+| --- | --- |
+| `BINARY_NOT_FOUND` | Install Kimi Code; `kimi login`; set `KIMI_CLI_PATH` |
+| `ACP_FAILED` / `LOGIN_REQUIRED` | `kimi login` in a normal terminal; re-run setup |
+| MCP tools missing | Absolute `codex mcp add` (above) |
+| Long task cut off | Plugin sets long tool timeout; or use start + status (advanced) |
+| Codex Cloud | Not supported — needs local `kimi` |
+| `MEDIA_NOT_FOUND` | Absolute path or path under the workspace Kimi uses |
+
+Errors are prefixed with `[kimi-plugin]` and include a **Fix** list.
+
+## Compatibility
+
+| Component | Requirement |
+| --- | --- |
+| This plugin | 0.1.1 |
+| Node | ≥ 18.18 |
+| Kimi Code | CLI with working `kimi acp`. Setup prints `compat` + version. |
+| Codex | Local only |
 
 ## Related
 
@@ -76,11 +106,8 @@ Do not invent a system prompt for Kimi, and do not solve the same task in parall
 | [kimi-plugin-cc](https://github.com/oppnc/kimi-plugin-cc) | Claude Code / Grok |
 | **kimi-plugin-codex** (this repo) | OpenAI Codex |
 
+Maintainer docs: [AGENTS.md](AGENTS.md) · Changelog: [CHANGELOG.md](CHANGELOG.md)
+
 ## License
 
-MIT — see [LICENSE](./LICENSE).  
-Kimi Code is a separate project with its own license.
-
----
-
-**中文文档:** [README.zh-CN.md](README.zh-CN.md)
+MIT — see [LICENSE](./LICENSE).

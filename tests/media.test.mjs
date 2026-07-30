@@ -47,8 +47,23 @@ describe("media helpers", () => {
     assert.ok(notes.some((n) => n.includes("video")));
   });
 
-  it("reports missing files", () => {
-    const { errors } = buildMediaPromptParts([path.join(tmp, "nope.png")]);
-    assert.ok(errors[0].includes("not found"));
+  it("reports missing files with actionable error", () => {
+    const { errors } = buildMediaPromptParts([path.join(tmp, "nope.png")], {
+      cwd: tmp,
+    });
+    assert.match(errors[0], /MEDIA_NOT_FOUND|media file not found/i);
+    assert.match(errors[0], /Fix:/);
+  });
+
+  it("resolves relative media against cwd option", () => {
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    const p = path.join(tmp, "rel.png");
+    fs.writeFileSync(p, png);
+    const { blocks, errors } = buildMediaPromptParts(["rel.png"], { cwd: tmp });
+    assert.equal(errors.length, 0);
+    assert.equal(blocks[0].type, "image");
   });
 });

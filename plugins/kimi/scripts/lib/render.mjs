@@ -2,8 +2,12 @@ export function renderSetupReport(report) {
   const lines = [
     "Kimi Plugin Codex — setup",
     "─────────────────────────",
+    `plugin      : ${report.pluginVersion || "-"}`,
+    `node        : ${report.nodeVersion || process.version}`,
+    `workspace   : ${report.workspace?.cwd || "-"} (${report.workspace?.source || "?"}${report.workspace?.envKey ? `:${report.workspace.envKey}` : ""})`,
     `kimi binary : ${report.kimiBin || "(not found)"}`,
     `version     : ${report.version || "(unknown)"}`,
+    `compat      : ${report.compat?.level || "-"}`,
     `acp probe   : ${report.acpOk ? "ok" : "FAILED"}`,
     `agent       : ${[report.agentName, report.agentVersion].filter(Boolean).join(" ") || "-"}`,
   ];
@@ -22,6 +26,18 @@ export function renderSetupReport(report) {
       lines.push(`- ${h}`);
     }
   }
+  if (report.compat?.notes?.length) {
+    lines.push("", "Compatibility:");
+    for (const n of report.compat.notes) {
+      lines.push(`- ${n}`);
+    }
+  }
+  if (report.nextSteps?.length) {
+    lines.push("", "Next (first verify):");
+    for (const n of report.nextSteps) {
+      lines.push(`- ${n}`);
+    }
+  }
   return `${lines.join("\n")}\n`;
 }
 
@@ -36,6 +52,12 @@ export function renderTaskResult(result) {
   }
   if (result.jobId) {
     lines.push(`job: ${result.jobId}`);
+  }
+  if (result.cwd) {
+    lines.push(`cwd: ${result.cwd}`);
+  }
+  if (result.mediaNotes?.length) {
+    lines.push(`media: ${result.mediaNotes.join("; ")}`);
   }
   lines.push("");
   lines.push(result.text?.trim() || "(no agent text)");

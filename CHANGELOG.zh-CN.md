@@ -2,6 +2,17 @@
 
 **Language / 语言:** [English](CHANGELOG.md) | [中文](CHANGELOG.zh-CN.md)
 
+## 0.1.1
+
+### 新增
+- README + setup 的 **首次验证**（`kimi_rescue` 交前端任务）
+- Setup doctor：Node、workspace、compat、可行动错误码
+- 标准化 `[kimi-plugin]` 错误与 Fix 列表
+- 工作区 / 媒体路径解析增强
+
+### 变更
+- 用户文档只保留主路径 `kimi_rescue`；加强前端/视觉触发
+
 ## 0.1.0
 
 首次公开发布：在 **OpenAI Codex** 中通过 ACP 将本机 **Kimi Code** 作为 subagent 调用。

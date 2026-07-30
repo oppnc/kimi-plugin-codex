@@ -1,32 +1,30 @@
 ---
 name: kimi-delegate
 description: >
-  Hand substantial implementation, frontend/UI, multimodal visual debugging,
-  multi-file coding, or long-horizon goals to local Kimi Code as a subagent
-  (kimi_rescue). Use when the main Codex thread should not own that work.
+  Hand frontend/UI implementation, CSS/layout, screenshot or video visual bugs,
+  multimodal debugging, multi-file coding, or long-horizon goals to local Kimi Code
+  via kimi_rescue. Prefer this for frontend and visual tasks instead of implementing
+  them in Codex when Kimi is available.
 ---
 
-# Kimi Code subagent (Codex)
+# Kimi Code subagent (Codex) — happy path
 
 Treat **local Kimi Code** as a **subagent**, not as a remote ops API.
 
-- Thin handoff only: forward the user task over ACP.
-- **Do not** reimplement Kimi system prompts, tools, swarm, or skills.
-- Kimi keeps its own environment (models, tools, multimodal, goals).
-
-## When to call the subagent
+## When to call
 
 Use proactively when:
 
-- Frontend / UI / visual bugs (pass screenshot or recording paths)
+- **Frontend / UI / CSS / layout / components**
+- **Screenshot or video** visual bugs (pass image/video paths)
 - Multi-file implementation, or the main thread is stuck
 - Long-horizon objectives with a clear finish line
 
 Do **not** use for trivial one-liners Codex can finish alone.
 
-## One handoff (primary)
+## Happy path (only path most users need)
 
-Prefer a **single** tool call:
+One tool call:
 
 ```text
 kimi_rescue({
@@ -35,58 +33,53 @@ kimi_rescue({
 })
 ```
 
-Optional fields (routing only — not a second system prompt):
+With media:
 
-| Field | Use |
-| --- | --- |
-| `mode` | `yolo` (default implement), `plan` (plan-only), `auto` / `default` |
-| `image` / `video` / `media` | Multimodal paths |
-| `goal: true` or use objective-style wording | Kimi Goal framing |
-| `resume: true` / `session` | Same subagent thread |
-| `fresh: true` | New Kimi session |
-| `model` / `thinking` | From `kimi_setup` catalog if user asked |
-| `git: true` | Raw git facts only |
+```text
+kimi_rescue({
+  "prompt": "<describe the visual bug>",
+  "mode": "yolo",
+  "image": ["C:/path/to/shot.png"]
+})
+```
 
 ### After `kimi_rescue` returns
 
-JSON includes:
-
 - `text` — **show the user verbatim** (Kimi’s answer). Do not rewrite as “your” work.
-- `status` / `phase` / `sessionId`
-- `still_running` — if true, the subagent is still working past the wait budget:
-  - poll `kimi_status` / `kimi_result` with `jobId`, **or**
-  - call `kimi_rescue` again only if appropriate; otherwise keep polling
-- `resume_hint` — if the objective looks unfinished after `completed`, call `kimi_rescue` with `resume: true`
+- `still_running` — if true, poll `kimi_status` / `kimi_result` with `jobId` (advanced).
+- `resume_hint` — unfinished objective → `kimi_rescue` with `resume: true`.
 
-While waiting, you may tell the user briefly that Kimi is working. **Do not** solve the same task yourself in parallel unless the user asks.
+While waiting, you may say Kimi is working. **Do not** solve the same task in parallel.
 
-## Fallback paths (implementation detail)
+## First run
 
-Only when needed:
+If handoff fails or this is the first use, call **`kimi_setup`** and show the report (includes Fix steps and next verify prompts).
+
+## Optional routing fields
+
+| Field | Use |
+| --- | --- |
+| `mode` | `yolo` (default implement), `plan` (plan-only) |
+| `image` / `video` / `media` | Multimodal paths (workspace-relative or absolute) |
+| `goal: true` | Kimi Goal framing |
+| `resume: true` / `session` | Same subagent thread |
+| `fresh: true` | New Kimi session |
+| `model` / `thinking` | From `kimi_setup` if user asked |
+
+## Advanced (only if needed)
 
 | Tool | When |
 | --- | --- |
-| `kimi_setup` | First use / diagnostics |
-| `kimi_task_start` + `kimi_status` + `kimi_result` | User asked to detach, or work must outlive one MCP wait |
+| `kimi_task_start` + `kimi_status` + `kimi_result` | User asked to detach, or work outlives one MCP wait |
 | `kimi_goal_start` | Explicit long goal + detach |
-| `kimi_task` | Tiny sync probe only |
 | `kimi_cancel` | User aborts |
 
-Do **not** narrate job plumbing to the user unless they ask for status details.
+Do **not** narrate job plumbing unless the user asks.
 
 ## Subagent rules
 
-1. **Forward-only** — user intent + routing flags; no invented review rubrics or system prompts  
-2. **One handoff** — prefer `kimi_rescue`; hide start/poll unless fallback is required  
-3. **Verbatim results** — return Kimi `text` as-is  
-4. **No parallel steal** — don’t implement the same task while Kimi runs  
-5. **Same thread** — follow-ups use `resume: true` / `session` unless user wants a fresh start  
-6. **Media first** — prefer real paths over describing pixels in prose  
-
-## Modes (bridge permission mapping)
-
-| mode | Meaning |
-| --- | --- |
-| `yolo` | Default implement/rescue |
-| `plan` | Plan-only; mutating tools rejected on the bridge |
-| `auto` / `default` | See setup / companion notes |
+1. Forward-only — user intent + routing; no invented system prompts  
+2. One handoff — prefer `kimi_rescue`  
+3. Verbatim results  
+4. No parallel steal  
+5. Media first — real paths over prose pixels  

@@ -26,7 +26,7 @@ Marketplace name: `kimi-plugin-codex` · plugin id: `kimi` → install as `kimi@
 | Local workspace | Kimi edits disk; no client FS reverse-RPC bridge |
 | Product focus | Frontend, multimodal, goals — not review pipelines |
 
-## Version (keep in sync — all **0.1.0**)
+## Version (keep in sync — all **0.1.1**)
 
 | Location | Field |
 | --- | --- |

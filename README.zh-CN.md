@@ -3,71 +3,101 @@
 **Language / 语言:** [English](README.md) | [中文](README.zh-CN.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](./CHANGELOG.zh-CN.md)
+[![Version](https://img.shields.io/badge/version-0.1.1-green.svg)](./CHANGELOG.zh-CN.md)
 
-这个插件只做一件事：在 **OpenAI Codex / ChatGPT** 里把 [Kimi Code](https://github.com/MoonshotAI/kimi-code) 作为 subagent 调用。
+在 **OpenAI Codex**（本地 CLI / IDE）里，把 **[Kimi Code](https://github.com/MoonshotAI/kimi-code)** 当作 subagent 调用。
 
-Kimi k3 的前端、多模态能力很强；放在熟悉的环境 Kimi Code 里会更强。如果你不想直接用 kimi code，想给主 Agent 补强前端，或把有限的 kimi tokens 花在刀刃上——你来对了。
-
-用过 Codex / ChatGPT 都知道，GPT 的前端能力堪比 15 年前的新手大学生，可也不得不承认，Codex / ChatGPT 的产品做得确实好，GPT 的工程能力确实强。现在通过 kimi-plugin-codex 来提升你的前端能力。
-
-只做薄 ACP 桥接，不重写 Kimi 的 system prompt。工具、swarm、skills、模型仍由 Kimi Code 自己负责，给 Kimi k3 最熟悉的环境。
+Kimi k3 前端、多模态更强；在 Kimi Code 里更强。本插件是 **薄 ACP 桥**（skills + MCP）。**不支持 Codex Cloud**（云端没有本机 `kimi`）。
 
 | | |
 | --- | --- |
-| **版本** | **0.1.0** |
-| **宿主** | OpenAI Codex / ChatGPT（本地） |
+| **版本** | **0.1.1** |
+| **宿主** | 本地 OpenAI Codex |
 | **Node** | ≥ 18.18 |
-| **仓库** | [github.com/oppnc/kimi-plugin-codex](https://github.com/oppnc/kimi-plugin-codex) |
+| **依赖** | Kimi Code CLI + `kimi login` |
 
-> 变更日志：[中文](CHANGELOG.zh-CN.md) · [English](CHANGELOG.md)  
-> 安全：[SECURITY.md](SECURITY.md) · 维护者：[AGENTS.md](AGENTS.md)
+Claude Code / Grok 请用 **[kimi-plugin-cc](https://github.com/oppnc/kimi-plugin-cc)**。
 
-这不是 Claude Code 包。CC / Grok 请用 **[kimi-plugin-cc](https://github.com/oppnc/kimi-plugin-cc)**。
+## 主路径
 
-## 功能
-
-| 功能 | 方式 |
+| | |
 | --- | --- |
-| 完整 Kimi agent | `kimi acp` → `session/prompt` |
-| 模式 | `default` \| `plan` \| `auto` \| `yolo` |
-| 多模态 | 图片 / 视频 / 媒体路径 |
-| Goals | Goal 交接 |
-| 续聊 | 同一 Kimi session 续跑 |
-| 任务记录 | 状态 / 结果 / 取消 |
-| 宿主 UX | Skill 一次交接 → MCP `kimi_rescue` |
+| **工具** | MCP **`kimi_rescue`**（skill **`kimi-delegate`** 优先走它） |
+| **适用** | 前端/UI、CSS/布局、截图/**视频** 问题、多文件实现 |
+| **说法** | 让 Codex 把任务交给 Kimi，**原文回传**结果 |
 
-## 环境要求
+示例：
 
-- Node.js ≥ 18.18
-- 已安装并登录 [Kimi Code CLI](https://github.com/MoonshotAI/kimi-code)（`kimi login`）
-- 本地 Codex（CLI 或 IDE）。**不支持 Codex Cloud**（云端无本机 `kimi`）
+> 用 kimi_rescue 实现一个小的响应式 settings 区块（用现有 design tokens）。把 Kimi 的结果原文给我。
+
+高级工具（start/status/result）见 [AGENTS.md](AGENTS.md)。
 
 ## 安装
 
-在仓库根目录（marketplace 文件在 `.agents/plugins/marketplace.json`）：
+Codex 安装偏 **本地 marketplace**（宿主策略限制）。常见流程：
 
 ```bash
+# 在本仓库 clone 根目录
 codex plugin marketplace add /absolute/path/to/kimi-plugin-codex
 codex plugin add kimi@kimi-plugin-codex
 ```
 
-在 Codex 中启用 **kimi**，必要时重启。首次使用可让 Codex 跑一次 setup / 诊断（skill **`kimi-setup`**）。
+启用 **kimi**，必要时重启。首次：skill **`kimi-setup`** 或 MCP **`kimi_setup`**。
 
-已安装用户要拿到新版本：更新 marketplace 后重装 **kimi**（声明的 `version` 变化才会刷新）。
+### MCP 工具一直不出现
 
-若安装后 MCP 工具未出现，见 [AGENTS.md](AGENTS.md) 中的回退注册方式。
+用绝对路径注册（最常见修复）：
 
-## 怎么用
+```bash
+codex mcp add kimi -- node /absolute/path/to/kimi-plugin-codex/plugins/kimi/scripts/kimi-mcp.mjs
+```
 
-在 Codex 里把需要 Kimi 做的事交给它即可，例如：
+Windows：PATH 不完整时设 `KIMI_CLI_PATH=%USERPROFILE%\.kimi-code\bin\kimi.exe`。
 
-- 前端 / UI / 看图找布局问题  
-- 多文件实现、主 Agent 卡住时的补强  
-- 带明确完成标准的长目标  
+## 首次验证（装完做一次）
 
-主路径是 **一次交接**（`kimi_rescue`）：把任务交给 Kimi，等结果，**原文回传**。  
-不需要自己拼 system prompt，也不要在委派期间并行抢同一任务。
+### 1) 诊断
+
+```bash
+node plugins/kimi/scripts/kimi-companion.mjs setup
+# 或在 Codex 里：kimi_setup / kimi-setup
+```
+
+期望 `acp probe: ok` 和 **Next (first verify)**。
+
+### 2) 把前端任务交给 Kimi
+
+在 Codex 里：
+
+> 用 kimi_rescue 实现一个小的响应式 settings 区块（用现有 design tokens），改动尽量少，结果原文返回。
+
+CLI 探针：
+
+```bash
+node plugins/kimi/scripts/kimi-companion.mjs task --mode yolo -- "Reply with exactly: kimi-bridge-ok"
+```
+
+## 排查
+
+| 症状 | 处理 |
+| --- | --- |
+| `BINARY_NOT_FOUND` | 装 Kimi Code；`kimi login`；`KIMI_CLI_PATH` |
+| `ACP_FAILED` / `LOGIN_REQUIRED` | 普通终端 `kimi login` 后重跑 setup |
+| MCP 无工具 | 上面的绝对路径 `codex mcp add` |
+| 长任务被掐断 | 插件已加长超时；或 start + status（高级） |
+| Codex Cloud | 不支持 |
+| `MEDIA_NOT_FOUND` | 绝对路径或工作区内相对路径 |
+
+错误以 `[kimi-plugin]` 开头并带 **Fix** 列表。
+
+## 兼容性
+
+| 组件 | 要求 |
+| --- | --- |
+| 本插件 | 0.1.1 |
+| Node | ≥ 18.18 |
+| Kimi Code | 支持 `kimi acp` 的 CLI |
+| Codex | 仅本地 |
 
 ## 相关仓库
 
@@ -76,11 +106,8 @@ codex plugin add kimi@kimi-plugin-codex
 | [kimi-plugin-cc](https://github.com/oppnc/kimi-plugin-cc) | Claude Code / Grok |
 | **kimi-plugin-codex**（本仓库） | OpenAI Codex |
 
+维护者：[AGENTS.md](AGENTS.md) · 变更：[CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md)
+
 ## 许可证
 
-MIT — 见 [LICENSE](./LICENSE)。  
-Kimi Code 为独立项目，许可证以官方仓库为准。
-
----
-
-**English:** [README.md](README.md)
+MIT — 见 [LICENSE](./LICENSE)。

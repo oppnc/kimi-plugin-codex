@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const COMPANION = join(__dirname, "kimi-companion.mjs");
 const SERVER_NAME = "kimi-plugin-codex";
-const SERVER_VERSION = "0.1.0";
+const SERVER_VERSION = "0.1.1";
 
 function writeMessage(obj) {
   const body = JSON.stringify(obj);
@@ -102,16 +102,18 @@ const TOOLS = [
   {
     name: "kimi_setup",
     description:
-      "Once-per-machine check that local Kimi Code CLI is installed, logged in, and ACP works.",
+      "First-run doctor: check local Kimi Code CLI, login, ACP, workspace cwd, and print next verify steps. " +
+      "Call once after install or when handoff fails.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
     name: "kimi_rescue",
     description:
-      "PRIMARY: hand one task to local Kimi Code as a subagent and wait for its result. " +
-      "Forwards the user task over ACP (Kimi keeps its own tools/models/skills). " +
-      "Prefer this for normal rescue/implement work. " +
-      "If still running when the wait budget ends, returns job_id so you can continue with kimi_status/kimi_result.",
+      "PRIMARY happy path: hand frontend/UI, screenshot or video visual bugs, multimodal, or multi-file " +
+      "implementation to local Kimi Code (subagent) and wait for its result. " +
+      "Prefer this over implementing frontend/UI yourself when Kimi is available. " +
+      "Forwards the user task over ACP (Kimi keeps tools/models/skills). " +
+      "If still running when the wait budget ends, returns job_id for kimi_status/kimi_result.",
     inputSchema: {
       type: "object",
       properties: {

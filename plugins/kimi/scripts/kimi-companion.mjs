@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * kimi-companion v0.1.0 — Kimi Code over ACP for OpenAI Codex.
+ * kimi-companion v0.1.1 — Kimi Code over ACP for OpenAI Codex.
  */
 
 import { spawn } from "node:child_process";
@@ -11,6 +11,16 @@ import { fileURLToPath } from "node:url";
 
 import { KimiAcpClient, listKimiSessions, runKimiAcpTurn } from "./lib/acp-client.mjs";
 import { parseArgs, parseTaskArgs } from "./lib/args.mjs";
+import {
+  acpFailedError,
+  binaryBadError,
+  binaryNotFoundError,
+  compatNotes,
+  invalidModeError,
+  nodeTooOldError,
+  resumeSessionError,
+  taskPromptRequiredError,
+} from "./lib/errors.mjs";
 import { collectGitContext } from "./lib/git-context.mjs";
 import { getHostSessionId } from "./lib/host-session.mjs";
 import { buildMediaPromptParts } from "./lib/media.mjs";
@@ -35,10 +45,11 @@ import {
   renderStatusList,
   renderTaskResult,
 } from "./lib/render.mjs";
-import { resolveWorkspaceRoot } from "./lib/workspace.mjs";
+import { describeWorkspaceRoot, resolveWorkspaceRoot } from "./lib/workspace.mjs";
 
 const VALID_MODES = new Set(["default", "plan", "auto", "yolo"]);
-const VERSION = "0.1.0";
+const VERSION = "0.1.1";
+const MIN_NODE = "18.18.0";
 /** Heartbeat interval for background runners (ms). */
 const BG_HEARTBEAT_MS = 10_000;
 /** running + no pid older than this → treat as orphan at reconcile (ms). */
@@ -113,7 +124,7 @@ function normalizeMode(raw, fallback = "yolo") {
   }
   const m = String(raw).trim().toLowerCase();
   if (!VALID_MODES.has(m)) {
-    throw new Error(`Invalid --mode ${raw}. Use default|plan|auto|yolo.`);
+    throw new Error(invalidModeError(raw));
   }
   return m;
 }
@@ -121,9 +132,33 @@ function normalizeMode(raw, fallback = "yolo") {
 function requireKimiBin() {
   const kimiBin = resolveKimiBinary();
   if (!kimiBin) {
-    throw new Error("kimi binary not found. Run setup / set KIMI_CLI_PATH.");
+    throw new Error(binaryNotFoundError());
   }
   return kimiBin;
+}
+
+function nodeSemverOk(current, min = MIN_NODE) {
+  const parse = (v) =>
+    String(v)
+      .replace(/^v/i, "")
+      .split(".")
+      .map((n) => parseInt(n, 10) || 0);
+  const a = parse(current);
+  const b = parse(min);
+  for (let i = 0; i < 3; i++) {
+    if ((a[i] || 0) > (b[i] || 0)) return true;
+    if ((a[i] || 0) < (b[i] || 0)) return false;
+  }
+  return true;
+}
+
+function setupNextSteps() {
+  return [
+    "Happy path: hand frontend/UI (or screenshot/video bugs) to Kimi via kimi_rescue — do not implement them in Codex when Kimi is ready.",
+    'In Codex: "Use kimi_rescue to implement a small responsive settings section using existing design tokens"',
+    "First-time: call MCP tool kimi_setup, then kimi_rescue with a short frontend task",
+    'CLI probe: node plugins/kimi/scripts/kimi-companion.mjs task --mode yolo -- "Reply with exactly: kimi-bridge-ok"',
+  ];
 }
 
 function findResumeSessionId(cwd, explicitSession) {
@@ -171,6 +206,7 @@ function buildUserPrompt({ prompt, asGoal, gitContext }) {
 }
 
 async function cmdSetup(asJson) {
+  const workspace = describeWorkspaceRoot(null);
   const kimiBin = resolveKimiBinary();
   const report = {
     ok: false,
@@ -184,23 +220,40 @@ async function cmdSetup(asJson) {
     modes: null,
     capabilities: null,
     pluginVersion: VERSION,
+    nodeVersion: process.version,
+    workspace,
+    compat: null,
     hostSessionId: getHostSessionId(),
     error: null,
+    errorCode: null,
     hints: [],
+    nextSteps: [],
   };
 
+  if (!nodeSemverOk(process.version, MIN_NODE)) {
+    report.error = nodeTooOldError(process.version);
+    report.errorCode = "NODE_TOO_OLD";
+    report.hints.push(...report.error.split("\n").slice(1));
+    failSetup(report, asJson);
+    return;
+  }
+
   if (!kimiBin) {
-    report.error = "kimi binary not found on PATH or in ~/.kimi-code/bin";
-    report.hints.push("Install Kimi Code CLI: https://github.com/MoonshotAI/kimi-code");
-    report.hints.push("Run `kimi login`, or set KIMI_CLI_PATH.");
+    report.error = binaryNotFoundError();
+    report.errorCode = "BINARY_NOT_FOUND";
+    report.hints.push("Install: https://github.com/MoonshotAI/kimi-code");
+    report.hints.push("Then: kimi login");
+    report.hints.push("Windows: set KIMI_CLI_PATH=%USERPROFILE%\\.kimi-code\\bin\\kimi.exe if needed");
     failSetup(report, asJson);
     return;
   }
 
   const ver = binaryAvailable(kimiBin, ["--version"]);
   report.version = ver.stdout || ver.stderr || null;
+  report.compat = compatNotes(report.version, VERSION);
   if (!ver.ok) {
-    report.error = `kimi --version failed`;
+    report.error = binaryBadError(report.version);
+    report.errorCode = "BINARY_BAD";
     report.hints.push("Reinstall Kimi Code or fix KIMI_CLI_PATH.");
     failSetup(report, asJson);
     return;
@@ -210,7 +263,7 @@ async function cmdSetup(asJson) {
   try {
     client = new KimiAcpClient({
       kimiBin,
-      cwd: process.cwd(),
+      cwd: workspace.cwd,
       mode: "default",
     });
     const init = await client.start();
@@ -232,13 +285,19 @@ async function cmdSetup(asJson) {
     report.modes = modeOpt?.options?.map((o) => o.value).join(", ") || "default, plan, auto, yolo";
     report.thinkingOptions = thinkOpt?.options?.map((o) => o.value) || null;
     report.ok = true;
+    report.nextSteps = setupNextSteps();
 
     if (!report.models.length) {
       report.hints.push("No models listed in ACP configOptions; check kimi login / providers.");
     }
+    if (report.compat?.level === "warn") {
+      report.hints.push(...report.compat.notes);
+    }
   } catch (error) {
-    report.error = error?.message || String(error);
-    report.hints.push("Run `kimi` in a terminal and complete login.");
+    const raw = error?.message || String(error);
+    report.error = acpFailedError(raw);
+    report.errorCode = /login|auth|401|403/i.test(raw) ? "LOGIN_REQUIRED" : "ACP_FAILED";
+    report.hints.push("Run `kimi login` in a normal terminal, then re-run setup.");
     report.hints.push("`kimi acp` should wait on stdin when launched alone.");
     process.exitCode = 1;
   } finally {
@@ -274,17 +333,18 @@ async function cmdTask(argv, { forceGoal = false } = {}) {
   const kimiBin = requireKimiBin();
 
   if (!args.prompt && !args.mediaPaths.length) {
-    throw new Error('task requires a prompt (or media). Example: task --mode yolo -- "Fix the navbar"');
+    throw new Error(taskPromptRequiredError());
   }
 
-  // Pin media to absolute paths at enqueue time so background `_bg-run`
-  // does not depend on the launcher cwd.
-  const mediaPaths = args.mediaPaths.map((p) => resolve(p));
-
-  const media = buildMediaPromptParts(mediaPaths);
+  // Resolve media against workspace cwd (agent-facing); pin absolute paths for bg jobs.
+  const media = buildMediaPromptParts(args.mediaPaths, { cwd });
   if (media.errors.length) {
-    throw new Error(media.errors.join("; "));
+    throw new Error(media.errors.join("\n\n"));
   }
+  const mediaPaths = args.mediaPaths.map((p) => {
+    const abs = resolve(cwd, p);
+    return fs.existsSync(abs) ? abs : resolve(p);
+  });
 
   let gitContext = "";
   if (args.withGit) {
@@ -304,7 +364,7 @@ async function cmdTask(argv, { forceGoal = false } = {}) {
   } else if (args.session || args.resume) {
     sessionId = findResumeSessionId(cwd, args.session);
     if (!sessionId) {
-      throw new Error("No resumable Kimi session found for this workspace. Omit --resume or pass --session <id>.");
+      throw new Error(resumeSessionError());
     }
     // resume without full history replay (lighter); use load if you need replay
     sessionMode = "resume";
