@@ -80,6 +80,11 @@ export function pickPermissionOptionId(options, ctx = {}) {
 /**
  * Map ACP mode to companion permission policy.
  * @param {'default'|'plan'|'auto'|'yolo'} mode
+ *
+ * NOTE: this plugin runs Kimi non-interactively, so `default` behaves like
+ * `auto`/`yolo` — every permission request is auto-approved (approve_always),
+ * there is no interactive human confirmation. Only `plan` rejects writes.
+ * If you need interactive approval, run `kimi` in a normal terminal instead.
  */
 export function permissionPolicyForMode(mode) {
   if (mode === "plan") {

@@ -2,6 +2,28 @@
 
 **Language / 语言:** [English](CHANGELOG.md) | [中文](CHANGELOG.zh-CN.md)
 
+## 0.2.1（开发中）
+
+### 修复
+- **取消竞态（POSIX）：** runner 收到 SIGTERM 时不再覆盖宿主已置为 `cancelled` 的 job——`failOrphan` 跳过已取消的 job。
+- **日志无限增长：** job 裁剪现在会连同 `logs/<job>.log` 一起删除。
+- **未知 flag 泄漏进 Kimi 的 prompt：** `task`/`goal` 现在拒绝未知的 `--` 选项，而不是悄悄并进任务文本（任务文本请放在 `--` 之后）。
+- **media TOCTOU：** 文件在 `existsSync` 与 `statSync` 之间被删时返回干净错误，不再裸抛异常。
+- **plan 模式零计划文本：** `task --mode plan` 只用了只读工具、结束时没有 agent 文本，现在算**失败**交接（`ok:false`、exit 1、`planEmptyText:true`），不再误报成功——plan 模式下计划文本本身就是交付物。
+- **goal 框架不再绕过 Q&A / 纯回复排除：** `--goal` 且 `Objective:` 为 `Reply with exactly: …` 或 how-to 问答时，不再触发 Mode B continue nudge（此前 `asGoal` 会无条件判为 action）。
+
+### 变更
+- **Mode A 空 turn 重试：** 默认 **2 → 5**；可用 `--empty-retries <n>` 配置（显式值 → `KIMI_EMPTY_RETRIES` 环境变量 → 默认；`0` 禁用）。
+- **`--timeout` 不再丢会话：** ACP 请求超时时客户端发送 `session/cancel` 并保留会话；失败的 job 会记录 `sessionId`，可用 `--resume` 继续同一线程。
+- **`status --wait` / `result --wait`：** 等待预算耗尽而 job 仍在 `running` 时退出码为**非零**（等待超时 ≠ 交接完成）。
+- **裁剪节流：** prune 扫描每 30s 至多一次，心跳写入保持廉价。
+- **`splitRawArgumentString`** 现在支持引号段内的转义引号/反斜杠。
+- **文档：** `default` 模式明确为全自动批准（与 `auto`/`yolo` 相同；仅 `plan` 拒绝写入）。移除 task 解析中未使用的 `waitTimeoutMs` 字段。
+
+### 新增
+- **GitHub Actions CI**（`.github/workflows/ci.yml`）：单元测试 + smoke + companion 版本一致性检查。
+- `tests/acp-client.test.mjs` + `tests/fixtures/fake-kimi-acp.mjs`（请求超时会话保留、可配置空 turn 重试预算）；`tests/companion-cli.test.mjs`（无需 Kimi 的 CLI 级契约：`--wait` 退出码、孤儿回收、取消竞态、resume 提示、未知 flag 拒绝）。
+
 ## 0.2.0
 
 公开包版本自 GitHub **0.1.x** 起记为 **0.2.0**（与 **kimi-plugin-cc** 0.2.0 锁步）。下方本地曾用的 0.2.x–0.3.0 标签仅为开发记录，不是独立公开发版。

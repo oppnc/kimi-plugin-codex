@@ -27,7 +27,16 @@ If the user already passed `--mode`, do not add another.
 
 Supported arguments: prompt after `--`, plus `--mode` (`default|plan|auto|yolo`), `--model`,
 `--thinking`, `--image` / `--video` / `--media`, `--cwd`, `--resume` / `--session` / `--fresh`,
-`--git` / `--base`, `--goal`, `--background`, `--timeout`, `--json`.
+`--git` / `--base`, `--goal`, `--background`, `--timeout`, `--empty-retries`, `--json`.
+
+## Timeouts and retries
+
+- `--timeout <ms>` is a soft ACP deadline: on timeout the companion sends `session/cancel`
+  and keeps the **session alive**. Resume the same thread with `--resume` / `--session <id>`.
+- `--empty-retries <n>` sets the Mode A empty-turn fresh-session retry budget
+  (default 5, `KIMI_EMPTY_RETRIES` env, `0` disables).
+- `status --wait` / `result --wait` exit **non-zero** when the wait budget runs out while the
+  job is still running — a wait timeout is not a completed handoff.
 
 ## Long-running
 

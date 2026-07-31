@@ -18,7 +18,7 @@
     "node": ">=18.18.0"
   },
   "scripts": {
-    "test": "node --test tests/args.test.mjs tests/permissions.test.mjs tests/state.test.mjs tests/media.test.mjs tests/process.test.mjs tests/errors.test.mjs tests/workspace.test.mjs tests/skills-contracts.test.mjs tests/prompt.test.mjs tests/turn-policy.test.mjs tests/host-free-attack.test.mjs",
+    "test": "node --test tests/args.test.mjs tests/permissions.test.mjs tests/state.test.mjs tests/media.test.mjs tests/process.test.mjs tests/errors.test.mjs tests/workspace.test.mjs tests/skills-contracts.test.mjs tests/prompt.test.mjs tests/turn-policy.test.mjs tests/acp-client.test.mjs tests/companion-cli.test.mjs tests/host-free-attack.test.mjs",
     "smoke": "node scripts/smoke.mjs",
     "setup": "node plugins/kimi/scripts/kimi-companion.mjs setup",
     "companion": "node plugins/kimi/scripts/kimi-companion.mjs"

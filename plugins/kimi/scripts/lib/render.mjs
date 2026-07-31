@@ -83,6 +83,14 @@ export function renderTaskResult(result) {
         );
       }
     }
+    if (result.planEmptyText) {
+      lines.push(
+        "",
+        "note: plan mode ran read-only tools but streamed no agent_message_chunk,",
+        "      so no plan text was delivered. The plan is the deliverable in plan mode,",
+        "      so hosts should re-dispatch (exit code is non-zero).",
+      );
+    }
   }
   if (result.incompleteContinued) {
     lines.push(
@@ -150,6 +158,12 @@ export function renderJobStatus(job) {
     lines.push(
       "",
       "hint      : if the objective looks unfinished, resume with --resume / resume:true and the same session",
+    );
+  } else if (job.status === "failed" && job.sessionId) {
+    // e.g. an ACP timeout that kept the session alive — the thread is resumable.
+    lines.push(
+      "",
+      "hint      : this failed job kept its session — resume with --resume / resume:true and the same session to continue the thread",
     );
   }
   if (job.resultText) {

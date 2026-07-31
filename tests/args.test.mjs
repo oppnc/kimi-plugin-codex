@@ -23,6 +23,19 @@ describe("splitRawArgumentString", () => {
       "do the thing",
     ]);
   });
+
+  it("unwraps escaped quotes and backslashes inside quotes", () => {
+    assert.deepEqual(
+      splitRawArgumentString(`-- "say \\"hi\\" and C:\\\\tmp"`),
+      ["--", 'say "hi" and C:\\tmp'],
+    );
+  });
+
+  it("keeps backslashes outside quotes literal (Windows paths)", () => {
+    assert.deepEqual(splitRawArgumentString(`C:\\Users\\x\\file.png`), [
+      "C:\\Users\\x\\file.png",
+    ]);
+  });
 });
 
 describe("parseArgs", () => {
@@ -80,5 +93,25 @@ describe("parseTaskArgs", () => {
   it("supports -- prompt with dashes", () => {
     const t = parseTaskArgs(["--mode", "yolo", "--", "fix --the thing"]);
     assert.equal(t.prompt, "fix --the thing");
+  });
+
+  it("rejects unknown flags instead of leaking them into the prompt", () => {
+    assert.throws(
+      () => parseTaskArgs(["--mode", "yolo", "--backgroundd", "Fix the navbar"]),
+      /Unknown task option\(s\): --backgroundd/,
+    );
+    assert.throws(
+      () => parseTaskArgs(["--mode", "yolo", "--wait=1", "fix it"]),
+      /Unknown task option\(s\): --wait=1/,
+    );
+    // After "--", flag-looking words are task text, not options.
+    const t = parseTaskArgs(["--mode", "yolo", "--", "fix --the thing --weird"]);
+    assert.equal(t.prompt, "fix --the thing --weird");
+  });
+
+  it("parses --empty-retries", () => {
+    const t = parseTaskArgs(["--empty-retries", "3", "--", "fix it"]);
+    assert.equal(t.emptyRetries, 3);
+    assert.equal(parseTaskArgs(["--", "fix it"]).emptyRetries, null);
   });
 });

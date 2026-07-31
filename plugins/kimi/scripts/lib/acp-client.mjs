@@ -18,8 +18,8 @@ import {
   isEmptyTurn,
   looksIncompleteTurn,
   MAX_CONTINUE_NUDGES,
-  MAX_EMPTY_RETRIES,
   mergeTurnResults,
+  resolveEmptyRetries,
 } from "./turn-policy.mjs";
 
 /** Handshake / config only — not used for session/prompt work. */
@@ -51,6 +51,9 @@ export class KimiAcpClient {
     this.mcpServers = Array.isArray(options.mcpServers) ? options.mcpServers : [];
     this.onLog = options.onLog || (() => {});
     this.onUpdate = options.onUpdate || (() => {});
+    // Test seam: allow injecting a fake spawn instead of the real kimi binary.
+    this.spawnFn = options.spawnFn || spawnKimiAcp;
+    this.spawnArgs = options.spawnArgs || null;
 
     this.proc = null;
     this.rl = null;
@@ -66,7 +69,10 @@ export class KimiAcpClient {
   }
 
   async start() {
-    this.proc = spawnKimiAcp(this.kimiBin, { cwd: this.cwd });
+    this.proc = this.spawnFn(this.kimiBin, {
+      cwd: this.cwd,
+      ...(this.spawnArgs || {}),
+    });
     this.proc.stderr.setEncoding("utf8");
     this.proc.stderr.on("data", (chunk) => {
       this.stderr += chunk;
@@ -236,8 +242,24 @@ export class KimiAcpClient {
             return;
           }
           this.pending.delete(id);
-          const tail = this.stderr ? `\nstderr tail:\n${this.stderr.slice(-2000)}` : "";
-          reject(new Error(`ACP request timed out after ${limitMs}ms: ${method}${tail}`));
+          const tail = this.stderr
+            ? `\nstderr tail:\n${this.stderr.slice(-2000)}`
+            : "";
+          const err = new Error(
+            `ACP request timed out after ${limitMs}ms: ${method}${tail}`,
+          );
+          // Keep the session resumable: cancel the in-flight turn instead of
+          // killing the process, and surface the session id so the caller can
+          // --resume the same session afterwards.
+          if (this.sessionId) {
+            err.sessionId = this.sessionId;
+            try {
+              this.notify("session/cancel", { sessionId: this.sessionId });
+            } catch {
+              // best-effort; close() still tears the process down
+            }
+          }
+          reject(err);
         }, limitMs);
       }
 
@@ -467,6 +489,9 @@ export async function runKimiAcpTurn(opts) {
     mcpServers = [],
     asGoal = false,
     forceContinue,
+    emptyRetries,
+    spawnFn,
+    spawnArgs,
     onLog,
     onUpdate,
   } = opts;
@@ -480,6 +505,8 @@ export async function runKimiAcpTurn(opts) {
     permissionPolicy: permissionPolicyForMode(mode),
     requestTimeoutMs,
     mcpServers,
+    spawnFn,
+    spawnArgs,
     onLog,
     onUpdate,
   };
@@ -520,15 +547,16 @@ export async function runKimiAcpTurn(opts) {
     // Not a host readline race. Retry on a brand-new session (new only).
     // Peer note: Claude ACP can reassemble message.result; Kimi empty turns
     // have no recoverable body — only retry + same-session recovery nudge.
-    if (isEmptyTurn(result) && sessionMode === "new") {
+    const retryBudget = resolveEmptyRetries(emptyRetries);
+    if (isEmptyTurn(result) && sessionMode === "new" && retryBudget > 0) {
       for (
         let attempt = 1;
-        attempt <= MAX_EMPTY_RETRIES && isEmptyTurn(result);
+        attempt <= retryBudget && isEmptyTurn(result);
         attempt++
       ) {
         emptyRetried = true;
         onLog?.(
-          `empty ACP agent text (no agent_message_chunk); retry ${attempt}/${MAX_EMPTY_RETRIES} on a new session`,
+          `empty ACP agent text (no agent_message_chunk); retry ${attempt}/${retryBudget} on a new session`,
         );
         await client.close();
         client = new KimiAcpClient(clientOpts);

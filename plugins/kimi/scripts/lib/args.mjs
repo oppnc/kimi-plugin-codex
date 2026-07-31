@@ -16,11 +16,18 @@ export function splitRawArgumentString(raw) {
   for (let i = 0; i < s.length; i += 1) {
     const ch = s[i];
     if (quote) {
+      // Inside quotes, backslash escapes the quote char or another backslash.
+      // Other backslashes stay literal so Windows paths survive intact.
+      if (ch === "\\" && (s[i + 1] === quote || s[i + 1] === "\\")) {
+        cur += s[i + 1];
+        i += 1;
+        continue;
+      }
       if (ch === quote) {
         quote = null;
-      } else {
-        cur += ch;
+        continue;
       }
+      cur += ch;
       continue;
     }
     if (ch === '"' || ch === "'") {
@@ -57,6 +64,7 @@ export function parseArgs(argv, spec = {}) {
     options: {},
     multi: {},
     rawAfterDashDash: null,
+    unknownFlags: [],
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -71,7 +79,11 @@ export function parseArgs(argv, spec = {}) {
       if (eq !== -1) {
         const key = tok.slice(2, eq);
         const val = tok.slice(eq + 1);
-        assignOption(out, key, val, flags, options, multiOptions);
+        if (flags.has(key) || options.has(key) || multiOptions.has(key)) {
+          assignOption(out, key, val, flags, options, multiOptions);
+        } else {
+          out.unknownFlags.push(tok);
+        }
         continue;
       }
       const key = tok.slice(2);
@@ -89,7 +101,7 @@ export function parseArgs(argv, spec = {}) {
         }
         continue;
       }
-      out._.push(tok);
+      out.unknownFlags.push(tok);
       continue;
     }
     out._.push(tok);
@@ -150,10 +162,19 @@ export function parseTaskArgs(argv) {
       "timeout",
       "session",
       "base",
-      "wait-timeout",
+      "empty-retries",
     ]),
     multiOptions: new Set(["image", "video", "media", "file"]),
   });
+
+  if (parsed.unknownFlags.length) {
+    throw new Error(
+      `Unknown task option(s): ${parsed.unknownFlags.join(", ")}. ` +
+        `Supported: --mode --model --thinking --cwd --prompt --timeout --session --base ` +
+        `--empty-retries --image --video --media --file --json --background --resume --fresh ` +
+        `--goal --git. Put the task text after "--" so flag-like words are not parsed as options.`,
+    );
+  }
 
   let prompt = "";
   if (parsed.options.prompt) {
@@ -184,10 +205,10 @@ export function parseTaskArgs(argv) {
     cwd: parsed.options.cwd || null,
     session: parsed.options.session || null,
     base: parsed.options.base || null,
-    timeoutMs: parsed.options.timeout ? Number(parsed.options.timeout) : null,
-    waitTimeoutMs: parsed.options["wait-timeout"]
-      ? Number(parsed.options["wait-timeout"])
+    emptyRetries: parsed.options["empty-retries"] != null
+      ? Number(parsed.options["empty-retries"])
       : null,
+    timeoutMs: parsed.options.timeout ? Number(parsed.options.timeout) : null,
     mediaPaths,
     prompt,
     parsed,
