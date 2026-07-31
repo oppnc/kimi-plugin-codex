@@ -172,6 +172,68 @@ test("attack (c): success handoff → ok:true exit 0 completed", () => {
   assert.equal(acc.emptyRetried, true);
 });
 
+test("attack (c): plan mode read-only tools but no plan text → ok:false exit 1", () => {
+  const acc = companionTaskAcceptance({
+    mode: "plan",
+    emptyAgentText: false,
+    text: "",
+    toolCalls: [
+      { title: "Read" },
+      { title: "Glob" },
+      { title: "Grep" },
+      { title: "Read" },
+      { title: "LS" },
+      { title: "Search" },
+    ],
+    stopReason: "end_turn",
+  });
+  assert.equal(acc.planEmptyText, true);
+  assert.equal(acc.ok, false);
+  assert.equal(acc.exitCode, 1);
+  assert.equal(acc.jobStatus, "failed");
+  assert.match(acc.jobError || "", /plan mode ended with no plan text/);
+});
+
+test("attack (c): plan mode with plan text + read-only tools → ok:true", () => {
+  const acc = companionTaskAcceptance({
+    mode: "plan",
+    text: "Plan: read lib/permissions.mjs then add a deny rule for delete.",
+    toolCalls: [{ title: "Read" }, { title: "Glob" }],
+    stopReason: "end_turn",
+  });
+  assert.equal(acc.planEmptyText, false);
+  assert.equal(acc.ok, true);
+  assert.equal(acc.exitCode, 0);
+  assert.equal(acc.jobStatus, "completed");
+});
+
+test("attack (c): plan mode empty text + no tools stays Mode A empty (not planEmptyText)", () => {
+  const acc = companionTaskAcceptance({
+    mode: "plan",
+    emptyAgentText: true,
+    text: "",
+    toolCalls: [],
+    stopReason: "end_turn",
+  });
+  assert.equal(acc.planEmptyText, false);
+  assert.equal(acc.emptyAgentText, true);
+  assert.equal(acc.ok, false);
+  assert.equal(acc.exitCode, 1);
+});
+
+test("attack (c): yolo mode empty text + tools is NOT planEmptyText (unchanged)", () => {
+  const acc = companionTaskAcceptance({
+    mode: "yolo",
+    emptyAgentText: false,
+    text: "",
+    toolCalls: [{ title: "Read" }],
+    stopReason: "end_turn",
+  });
+  assert.equal(acc.planEmptyText, false);
+  assert.equal(acc.ok, true);
+  assert.equal(acc.exitCode, 0);
+});
+
 test("attack (c): render empty note mentions fail-loud / non-zero exit", () => {
   const text = renderTaskResult({
     stopReason: "end_turn",

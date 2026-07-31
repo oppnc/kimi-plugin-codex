@@ -13,8 +13,39 @@
  *   must not trigger implement-style Mode B.
  */
 
-/** Max fresh-session retries for Mode A (empty end_turn). */
-export const MAX_EMPTY_RETRIES = 2;
+/** Default fresh-session retries for Mode A (empty end_turn). */
+export const MAX_EMPTY_RETRIES = 5;
+
+/**
+ * Resolve the Mode A empty-turn retry budget from env (KIMI_EMPTY_RETRIES).
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {number}
+ */
+export function emptyRetryBudget(env = process.env) {
+  const raw = String(env.KIMI_EMPTY_RETRIES ?? "").trim();
+  if (raw === "") {
+    return MAX_EMPTY_RETRIES;
+  }
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : MAX_EMPTY_RETRIES;
+}
+
+/**
+ * Resolve the retry budget with explicit-option precedence:
+ * explicit value > env (KIMI_EMPTY_RETRIES) > default (MAX_EMPTY_RETRIES).
+ * @param {number|string|null|undefined} value
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {number}
+ */
+export function resolveEmptyRetries(value, env = process.env) {
+  if (value != null && value !== "") {
+    const n = Number(value);
+    if (Number.isFinite(n) && n >= 0) {
+      return Math.floor(n);
+    }
+  }
+  return emptyRetryBudget(env);
+}
 
 /** Max same-session continue nudges for Mode B. */
 export const MAX_CONTINUE_NUDGES = 2;
@@ -136,39 +167,54 @@ export function isReplyOnlyPrompt(p) {
 }
 
 /**
+ * Goal-wrapped task text (buildUserPrompt) prefixes framing before
+ * "Objective: <task>". Classify against the actual objective when present so
+ * goal-framed Q&A / reply-exactly probes still skip Mode B.
+ * @param {string} p
+ */
+function objectiveSubject(p) {
+  const m = /Objective:\s*([\s\S]+)$/i.exec(p);
+  return m ? m[1].trim() : p;
+}
+
+/**
  * Prompt asks for workspace/code changes (disk work), not pure Q&A or echo.
  * @param {string|null|undefined} prompt
  * @param {{ asGoal?: boolean }} [opts]
  */
 export function looksLikeActionPrompt(prompt, opts = {}) {
-  if (opts.asGoal) {
-    return true;
-  }
   const p = String(prompt || "").trim();
   if (!p) {
     return false;
   }
-  if (isReplyOnlyPrompt(p)) {
+  const subject = objectiveSubject(p);
+  // Pure reply / echo probes (bridge-ok, reply-with-exactly) are never action
+  // work, even under goal framing — the Goal wrapper must not Mode-B nudge them.
+  if (isReplyOnlyPrompt(subject)) {
     return false;
+  }
+  // How-to / explain first — even if "implement" appears later in the question,
+  // and even when goal-framed ("Objective: Explain how X works" is still Q&A).
+  if (QA_LEAD_RE.test(subject) && !DISK_MANDATE_RE.test(subject)) {
+    return false;
+  }
+  if (opts.asGoal) {
+    return true;
   }
   if (/Objective:|as a Kimi \*\*Goal\*\*/i.test(p)) {
     return true;
   }
-  // How-to / explain first — even if "implement" appears later in the question.
-  if (QA_LEAD_RE.test(p) && !DISK_MANDATE_RE.test(p)) {
-    return false;
-  }
-  if (DISK_ACTION_RE.test(p) || CJK_DISK_ACTION_RE.test(p) || DISK_MANDATE_RE.test(p)) {
+  if (DISK_ACTION_RE.test(subject) || CJK_DISK_ACTION_RE.test(subject) || DISK_MANDATE_RE.test(subject)) {
     return true;
   }
   // Multi-word task-ish without Q&A / reply: require a file path cue or "code/repo"
   if (
-    p.length >= 12 &&
-    p.length <= 400 &&
-    !/\?\s*$/.test(p) &&
-    (/\.(js|ts|tsx|jsx|css|html|vue|py|go|rs|json|md)\b/i.test(p) ||
-      /\b(code|repo|repository|workspace|file|module|component)\b/i.test(p) ||
-      /文件|代码|仓库|项目/.test(p))
+    subject.length >= 12 &&
+    subject.length <= 400 &&
+    !/\?\s*$/.test(subject) &&
+    (/\.(js|ts|tsx|jsx|css|html|vue|py|go|rs|json|md)\b/i.test(subject) ||
+      /\b(code|repo|repository|workspace|file|module|component)\b/i.test(subject) ||
+      /文件|代码|仓库|项目/.test(subject))
   ) {
     return true;
   }

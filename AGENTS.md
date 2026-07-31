@@ -99,9 +99,10 @@ Shared policy: `plugins/kimi/scripts/lib/turn-policy.mjs` (applied in `runKimiAc
 
 | Mode | Symptom | Companion action |
 | --- | --- | --- |
-| **A — empty** | `end_turn` with no agent text and no tools | Up to **2** fresh-session retries, then **1** same-session empty-recovery nudge; still empty → job **`failed`**, **exit code 1** |
+| **A — empty** | `end_turn` with no agent text and no tools | Up to **5** fresh-session retries (default), then **1** same-session empty-recovery nudge; still empty → job **`failed`**, **exit code 1** |
 | **B — incomplete** | Disk/action task ends after plan text or only read/search tools | Up to **2** same-session continue nudges; stop if stagnant |
 
+- Mode A retry budget: `--empty-retries <n>` (explicit) → `KIMI_EMPTY_RETRIES` env → default **5**; `0` disables retries.
 - Off in `plan` mode; off for Q&A/how-to, reply-exactly probes, completion-claim text; disable with `KIMI_FORCE_CONTINUE=0`.
 - Empty turns are Mode A only (not reclassified as B).
 - Keep this core identical to kimi-plugin-cc except package identity strings.
@@ -121,7 +122,9 @@ Shared policy: `plugins/kimi/scripts/lib/turn-policy.mjs` (applied in `runKimiAc
 | **kimi-cli-runtime** | Internal pipe contract | OFF |
 
 Job phases (status JSON): `queued` → `launching` → `starting_acp` → `running` → terminal.  
-Orphaned dead runners → `failed` + `orphaned: true`.
+Orphaned dead runners → `failed` + `orphaned: true`.  
+Job store pruned to newest ~100 (job **and** its `.log` pruned together). `status`/`result --wait`
+exit **non-zero** when the wait budget runs out while the job is still `running`.
 
 ## Env
 

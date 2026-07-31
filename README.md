@@ -97,9 +97,17 @@ node plugins/kimi/scripts/kimi-companion.mjs task --mode yolo -- "Reply with exa
 | `$kimi:goal` | Goal-framed run (explicit; large/UI → rescue) |
 | `$kimi:task` | Light non-UI one-shot (explicit; frontend → rescue) |
 | `$kimi:sessions` | List ACP sessions for resume |
-| `$kimi:sessions` | List ACP sessions (explicit) |
 
 `--background` / `--wait` control whether the **Codex parent** waits; they are not companion detach flags.
+
+### Timeout & retry knobs
+
+- `--timeout <ms>` is a **soft** ACP deadline — on timeout the companion sends `session/cancel`
+  and keeps the session alive, so `--resume` / `--session <id>` can continue the same thread.
+- `--empty-retries <n>` sets the Mode A empty-turn fresh-session retry budget
+  (default **5**, `KIMI_EMPTY_RETRIES` env, `0` disables).
+- `status --wait` / `result --wait` exit **non-zero** if the wait budget runs out while the
+  job is still running — a wait timeout is not a completed handoff.
 
 ## Troubleshooting
 

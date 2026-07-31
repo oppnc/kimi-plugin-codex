@@ -23,4 +23,5 @@ Supported arguments: `[job-id]`, `--wait`, `--all`, `--cwd <path>`, `--json`
 - Do not reformat, summarize, or invent job ids.
 - Default listing is recent jobs for this workspace; `--all` widens the list when the companion supports it.
 - With `--wait` and a job id, block until the companion returns a terminal state or its own wait budget ends.
+- A `--wait` exit **≠ 0** with the job still `running` means the wait budget ran out — not a completed handoff.
 

@@ -103,7 +103,14 @@ export function buildMediaPromptParts(paths, opts = {}) {
       );
       continue;
     }
-    const stat = fs.statSync(filePath);
+    let stat;
+    try {
+      stat = fs.statSync(filePath);
+    } catch {
+      // existsSync raced with a delete/rename — surface as a file error.
+      errors.push(mediaNotFileError(filePath));
+      continue;
+    }
     if (!stat.isFile()) {
       errors.push(mediaNotFileError(filePath));
       continue;

@@ -2,6 +2,43 @@
 
 **Language / 语言:** [English](CHANGELOG.md) | [中文](CHANGELOG.zh-CN.md)
 
+## 0.2.1 (in development)
+
+### Fixed
+- **Cancel race (POSIX):** a runner SIGTERM no longer overwrites a job the host already
+  cancelled — `failOrphan` skips jobs in `cancelled` state.
+- **Unbounded log growth:** job pruning now removes the matching `logs/<job>.log` with the job file.
+- **Unknown flags leaked into Kimi's prompt:** `task`/`goal` reject unknown `--` options instead
+  of silently merging them into the task text (put task text after `--`).
+- **Media TOCTOU:** a file deleted between `existsSync` and `statSync` is now a clean error,
+  not a raw throw.
+- **Plan mode with no plan text:** `task --mode plan` that ran only read-only tools and ended
+  with zero agent text is now a **failed** handoff (`ok:false`, exit 1, `planEmptyText:true`)
+  instead of a false success — the plan itself is the deliverable in plan mode.
+- **Goal framing no longer bypasses Q&A / reply-only exclusion:** `--goal` with a
+  `Reply with exactly: …` or how-to `Objective:` no longer triggers Mode B continue nudges
+  (previously `asGoal` returned action unconditionally).
+
+### Changed
+- **Mode A empty-turn retries:** default raised **2 → 5**; configurable via `--empty-retries <n>`
+  (explicit → `KIMI_EMPTY_RETRIES` env → default; `0` disables).
+- **`--timeout` no longer loses the session:** on ACP request timeout the client sends
+  `session/cancel` and keeps the session alive; failed jobs record `sessionId` and
+  `--resume` can continue the same thread.
+- **`status --wait` / `result --wait`** exit **non-zero** when the wait budget runs out while
+  the job is still running (a wait timeout is not a completed handoff).
+- **Prune throttling:** prune scans run at most once per 30s so heartbeat writes stay cheap.
+- **`splitRawArgumentString`** now handles escaped quotes/backslashes inside quoted segments.
+- **Docs:** `default` mode is documented as full-auto approval (same as `auto`/`yolo`;
+  only `plan` rejects writes). Removed unused `waitTimeoutMs` field from task parsing.
+
+### Added
+- **GitHub Actions CI** (`.github/workflows/ci.yml`): unit tests + smoke + companion version check.
+- `tests/acp-client.test.mjs` + `tests/fixtures/fake-kimi-acp.mjs` (request-timeout session
+  preservation, configurable empty-retry budget).
+- `tests/companion-cli.test.mjs` — Kimi-free CLI-level contracts (`--wait` exit codes, orphan
+  reconciliation, cancel-race guard, resume hint, unknown-flag rejection).
+
 ## 0.2.0
 
 Public package version continues from GitHub **0.1.x** as **0.2.0** (aligned with **kimi-plugin-cc** 0.2.0). Intermediate local labels (0.2.x–0.3.0) below were development history and are not separate public tags.

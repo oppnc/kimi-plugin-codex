@@ -58,8 +58,23 @@ export function writeJob(job) {
 
 /** Keep the jobs dir bounded (best-effort, newest N by mtime survive). */
 const MAX_JOB_FILES = 100;
-function pruneJobs() {
+/** Throttle prune scans so frequent writes (heartbeats) stay cheap. */
+const PRUNE_THROTTLE_MS = 30_000;
+let lastPruneAt = 0;
+
+/**
+ * Prune the oldest job files (and their log files) past MAX_JOB_FILES.
+ * Best-effort; throttled to at most one scan per PRUNE_THROTTLE_MS unless
+ * `force` is set (used by tests / explicit maintenance).
+ * @param {boolean} [force]
+ */
+export function pruneJobs(force = false) {
   try {
+    const now = Date.now();
+    if (!force && now - lastPruneAt < PRUNE_THROTTLE_MS) {
+      return;
+    }
+    lastPruneAt = now;
     const dir = getJobsDir();
     const files = fs.readdirSync(dir).filter((f) => f.endsWith(".json"));
     if (files.length <= MAX_JOB_FILES) {
@@ -70,6 +85,9 @@ function pruneJobs() {
       .sort((a, b) => b.m - a.m);
     for (const old of byMtime.slice(MAX_JOB_FILES)) {
       fs.rmSync(path.join(dir, old.f), { force: true });
+      // Remove the matching runner log so ~/.kimi-plugin-*/logs stays bounded too.
+      const log = path.join(getLogsDir(), old.f.replace(/\.json$/, ".log"));
+      fs.rmSync(log, { force: true });
     }
   } catch {
     // best-effort

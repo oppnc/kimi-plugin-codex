@@ -206,6 +206,13 @@ Companion applies Mode A (empty retry + recovery nudge) and Mode B (incomplete c
 | `incompleteContinued` and work still unfinished on disk | Mode B nudged but objective may remain | Prefer **one** `--resume` with same session + short “finish Write/Edit” delta |
 | Exit **124** / `timed out after ~14s` / empty stdout after few seconds | **Host shell kill** (Codex default), not Mode A | Re-dispatch with **`timeout_ms: 86400000`** in child shell tool field (foreground). Do **not** switch to `--background` as a workaround - it makes the subagent return empty. |
 
+### Timeout keeps the session
+
+`--timeout <ms>` is a **soft** ACP deadline. On timeout the companion sends `session/cancel`
+and keeps the session alive — the job records `sessionId`, and `status`/`result` show a
+resume hint. Continue the same thread with `--resume` / `--session <id>`, do **not** treat
+a timeout as a lost handoff.
+
 ### Re-dispatch rules (max one automatic retry)
 
 1. **Host timeout (~14s):** re-spawn child with mandatory `timeout_ms: 86400000` **tool field** (not prose only). Same task text is OK. Do **not** use `--background` here - the subagent returns immediately and the parent cannot retrieve the result via the subagent.
