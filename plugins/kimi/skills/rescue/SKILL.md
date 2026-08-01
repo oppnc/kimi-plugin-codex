@@ -77,7 +77,7 @@ Installed layout always includes a version segment:
 
 | This SKILL.md absolute path | `<plugin-root>` | Companion |
 | --- | --- | --- |
-| `C:\Users\…\.codex\plugins\cache\kimi-plugin-codex\kimi\0.2.0\skills\rescue\SKILL.md` | `C:\Users\…\.codex\plugins\cache\kimi-plugin-codex\kimi\0.2.0` | `…\kimi\0.2.0\scripts\kimi-companion.mjs` (= `…/kimi/<version>/scripts/kimi-companion.mjs`) |
+| `C:\Users\…\.codex\plugins\cache\kimi-plugin-codex\kimi\0.2.1\skills\rescue\SKILL.md` | `C:\Users\…\.codex\plugins\cache\kimi-plugin-codex\kimi\0.2.1` | `…\kimi\0.2.1\scripts\kimi-companion.mjs` (= `…/kimi/<version>/scripts/kimi-companion.mjs`) |
 | `…/plugins/kimi/skills/rescue/SKILL.md` (dev checkout) | `…/plugins/kimi` | `…/plugins/kimi/scripts/kimi-companion.mjs` |
 
 ### Forbidden paths (never invent these)

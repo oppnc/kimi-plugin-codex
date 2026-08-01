@@ -4,8 +4,7 @@
 
 | Version | Supported |
 | --- | --- |
-| 0.4.x | Yes |
-| 0.2.x | Security fixes only |
+| 0.2.x | Yes |
 | 0.1.x | Security fixes only |
 
 ## What this plugin does (trust boundary)

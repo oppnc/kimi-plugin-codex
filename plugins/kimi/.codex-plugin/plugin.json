@@ -1,6 +1,6 @@
 {
   "name": "kimi",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Hand frontend/UI work to local Kimi Code via Codex skills + built-in subagent + companion (ACP). Skills only — no MCP. $kimi:rescue, setup, status, result, cancel, plan, goal, task, sessions.",
   "author": {
     "name": "kimi-plugin-codex"

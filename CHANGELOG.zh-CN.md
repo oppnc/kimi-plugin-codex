@@ -2,7 +2,7 @@
 
 **Language / 语言:** [English](CHANGELOG.md) | [中文](CHANGELOG.zh-CN.md)
 
-## 0.2.1（开发中）
+## 0.2.1
 
 ### 修复
 - **取消竞态（POSIX）：** runner 收到 SIGTERM 时不再覆盖宿主已置为 `cancelled` 的 job——`failOrphan` 跳过已取消的 job。
@@ -24,9 +24,12 @@
 - **GitHub Actions CI**（`.github/workflows/ci.yml`）：单元测试 + smoke + companion 版本一致性检查。
 - `tests/acp-client.test.mjs` + `tests/fixtures/fake-kimi-acp.mjs`（请求超时会话保留、可配置空 turn 重试预算）；`tests/companion-cli.test.mjs`（无需 Kimi 的 CLI 级契约：`--wait` 退出码、孤儿回收、取消竞态、resume 提示、未知 flag 拒绝）。
 
+### 兼容性
+- 已对 **kimi-code 0.31.1** 做过测试；自 0.30.0 起 ACP 协议无变化。最低支持 **0.30.0**（见 README 兼容表）。
+
 ## 0.2.0
 
-公开包版本自 GitHub **0.1.x** 起记为 **0.2.0**（与 **kimi-plugin-cc** 0.2.0 锁步）。下方本地曾用的 0.2.x–0.3.0 标签仅为开发记录，不是独立公开发版。
+公开包版本自 GitHub **0.1.x** 起记为 **0.2.0**（与 **kimi-plugin-cc** 0.2.0 锁步）。下文的中间本地标签（0.2.x–0.3.0）均为开发历史，非独立公开 tag。
 
 ### 新增
 - 仅 Skills 宿主路径：**`$kimi:rescue`**（前端/UI 可隐式）+ 显式 `$kimi:setup` / `status` / `result` / `cancel` / `plan` / `goal` / `task` / `sessions`

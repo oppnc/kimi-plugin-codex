@@ -60,7 +60,7 @@ node "<absolute-plugin-root>/scripts/kimi-companion.mjs" task ...
 
 ```js
 await tools.shell_command({
-  command: 'node "C:\\\\Users\\\\…\\\\kimi\\\\0.2.0\\\\scripts\\\\kimi-companion.mjs" task --mode yolo --cwd "C:\\\\…\\\\workspace" -- "<task>"',
+  command: 'node "C:\\\\Users\\\\…\\\\kimi\\\\0.2.1\\\\scripts\\\\kimi-companion.mjs" task --mode yolo --cwd "C:\\\\…\\\\workspace" -- "<task>"',
   workdir: "C:\\\\…\\\\workspace",
   timeout_ms: 86400000, // REQUIRED — never omit on Codex Desktop
 });

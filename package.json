@@ -1,6 +1,6 @@
 {
   "name": "kimi-plugin-codex",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "OpenAI Codex plugin that runs local Kimi Code as a subagent over ACP (skills + companion only; no MCP).",

@@ -24,7 +24,7 @@ import {
 
 /** Handshake / config only — not used for session/prompt work. */
 const INIT_TIMEOUT_MS = 60 * 1000;
-const PLUGIN_VERSION = "0.2.0";
+const PLUGIN_VERSION = "0.2.1";
 
 /** Positive ms → enforce; null/undefined/≤0 → no ACP request deadline. */
 function normalizeRequestTimeoutMs(value) {
