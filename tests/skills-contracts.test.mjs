@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const PLUGIN = path.join(ROOT, "plugins", "kimi");
-const VERSION = "0.2.0";
+const VERSION = "0.2.1";
 
 function read(rel) {
   return fs.readFileSync(path.join(ROOT, rel), "utf8");

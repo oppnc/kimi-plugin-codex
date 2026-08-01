@@ -2,7 +2,7 @@
 
 **Language / 语言:** [English](CHANGELOG.md) | [中文](CHANGELOG.zh-CN.md)
 
-## 0.2.1 (in development)
+## 0.2.1
 
 ### Fixed
 - **Cancel race (POSIX):** a runner SIGTERM no longer overwrites a job the host already
@@ -38,6 +38,10 @@
   preservation, configurable empty-retry budget).
 - `tests/companion-cli.test.mjs` — Kimi-free CLI-level contracts (`--wait` exit codes, orphan
   reconciliation, cancel-race guard, resume hint, unknown-flag rejection).
+
+### Compatibility
+- Tested against **kimi-code 0.31.1**; no ACP protocol changes since 0.30.0. Minimum supported
+  Kimi Code is **0.30.0** (documented in the README compatibility table).
 
 ## 0.2.0
 

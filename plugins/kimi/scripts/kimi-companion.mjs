@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * kimi-companion v0.2.0 — Kimi Code over ACP for OpenAI Codex.
+ * kimi-companion v0.2.1 — Kimi Code over ACP for OpenAI Codex.
  */
 
 import { spawn } from "node:child_process";
@@ -51,7 +51,7 @@ import { forceContinueEnabled } from "./lib/turn-policy.mjs";
 import { describeWorkspaceRoot, resolveWorkspaceRoot } from "./lib/workspace.mjs";
 
 const VALID_MODES = new Set(["default", "plan", "auto", "yolo"]);
-const VERSION = "0.2.0";
+const VERSION = "0.2.1";
 const MIN_NODE = "18.18.0";
 /** Heartbeat interval for background runners (ms). */
 const BG_HEARTBEAT_MS = 10_000;

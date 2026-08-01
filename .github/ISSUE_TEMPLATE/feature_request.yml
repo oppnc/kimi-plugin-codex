@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest an improvement (keep the bridge thin)
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This project stays a **thin ACP bridge** to local Kimi Code. Features that reimplement Kimi prompts or add heavy review pipelines are usually out of scope — see [AGENTS.md](https://github.com/oppnc/kimi-plugin-codex/blob/main/AGENTS.md).
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is hard or missing today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: How should it work for users and for host agents?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
