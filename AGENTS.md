@@ -138,6 +138,15 @@ exit **non-zero** when the wait budget runs out while the job is still `running`
 
 ## Codex install
 
+Remote (preferred, same shape as Claude Code marketplace):
+
+```bash
+codex plugin marketplace add oppnc/kimi-plugin-codex
+codex plugin add kimi@kimi-plugin-codex
+```
+
+Local checkout (authors):
+
 ```bash
 codex plugin marketplace add /absolute/path/to/kimi-plugin-codex
 codex plugin add kimi@kimi-plugin-codex
@@ -146,6 +155,7 @@ codex plugin add kimi@kimi-plugin-codex
 Then `$kimi:setup` once. After skill/version edits:
 
 ```bash
+codex plugin marketplace upgrade kimi-plugin-codex
 codex plugin remove kimi@kimi-plugin-codex
 codex plugin add kimi@kimi-plugin-codex
 ```

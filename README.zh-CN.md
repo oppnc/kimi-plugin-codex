@@ -63,8 +63,30 @@ $kimi:result
 
 ## 安装
 
+需要：**Node.js ≥ 18.18**、本机 **[Kimi Code](https://github.com/MoonshotAI/kimi-code)** 并完成 `kimi login`、本机 **Codex**（不支持 Cloud）。
+
+### 丢给 AI 安装
+
+把下面整段复制给 Codex / Claude / Grok 等，让它代你装：
+
+```text
+请从 https://github.com/oppnc/kimi-plugin-codex 安装 Kimi Codex 插件
+
+1. 前置：Node.js ≥ 18.18，已安装 Kimi Code CLI 并完成 kimi login。
+2. 执行：
+   codex plugin marketplace add oppnc/kimi-plugin-codex
+   codex plugin add kimi@kimi-plugin-codex
+3. 在 Codex 里跑 $kimi:setup，按输出修问题。
+4. 用 $kimi:rescue 实现一个极小的响应式 settings 区块（用现有 design tokens）做冒烟。
+
+仅本地 Codex（不支持 Codex Cloud）。Windows：若 PATH 找不到 kimi，设置
+KIMI_CLI_PATH 指向 kimi.exe 全路径（常见 %USERPROFILE%\.kimi-code\bin\kimi.exe）。
+```
+
+### 自己装
+
 ```bash
-codex plugin marketplace add /absolute/path/to/kimi-plugin-codex
+codex plugin marketplace add oppnc/kimi-plugin-codex
 codex plugin add kimi@kimi-plugin-codex
 ```
 
@@ -73,17 +95,23 @@ codex plugin add kimi@kimi-plugin-codex
 改版本 / skills 后：
 
 ```bash
+codex plugin marketplace upgrade kimi-plugin-codex
 codex plugin remove kimi@kimi-plugin-codex
 codex plugin add kimi@kimi-plugin-codex
 ```
 
-若以前加过全局 MCP（0.3 之前），请删除：
+本地 checkout（给插件作者）：
+
+```bash
+codex plugin marketplace add /absolute/path/to/kimi-plugin-codex
+codex plugin add kimi@kimi-plugin-codex
+```
+
+若以前加过全局 MCP（0.3 之前）：
 
 ```bash
 codex mcp remove kimi
 ```
-
-Windows：PATH 不完整时设 `KIMI_CLI_PATH=%USERPROFILE%\.kimi-code\bin\kimi.exe`。
 
 ## 首次验证
 
@@ -92,7 +120,7 @@ $kimi:setup
 $kimi:rescue 实现一个小的响应式 settings 区块（用现有 design tokens）
 ```
 
-CLI 探针：
+CLI 探针（不依赖宿主插件）：
 
 ```bash
 node plugins/kimi/scripts/kimi-companion.mjs task --mode yolo -- "Reply with exactly: kimi-bridge-ok"

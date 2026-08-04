@@ -60,27 +60,55 @@ Details: [AGENTS.md](AGENTS.md).
 
 ## Install
 
+Needs: **Node.js ≥ 18.18**, local **[Kimi Code](https://github.com/MoonshotAI/kimi-code)** + `kimi login`, local **Codex** (not Cloud).
+
+### Paste into your agent
+
+Copy the block below into Codex / Claude / Grok / any coding agent and let it install:
+
+```text
+Install the Kimi Codex plugin from https://github.com/oppnc/kimi-plugin-codex
+
+1. Prerequisites: Node.js ≥ 18.18, Kimi Code CLI installed and `kimi login` done.
+2. Run:
+   codex plugin marketplace add oppnc/kimi-plugin-codex
+   codex plugin add kimi@kimi-plugin-codex
+3. In Codex run `$kimi:setup` and fix anything it reports.
+4. Smoke-check with `$kimi:rescue implement a tiny responsive settings section using existing design tokens`.
+
+Local Codex only (not Codex Cloud). Windows: if `kimi` is missing from PATH, set
+KIMI_CLI_PATH to the full path of kimi.exe (often %USERPROFILE%\.kimi-code\bin\kimi.exe).
+```
+
+### Or install yourself
+
 ```bash
-codex plugin marketplace add /absolute/path/to/kimi-plugin-codex
+codex plugin marketplace add oppnc/kimi-plugin-codex
 codex plugin add kimi@kimi-plugin-codex
 ```
 
 Enable **kimi**, restart if needed. First time: **`$kimi:setup`**.
 
-After changing version / skills:
+After a version / skills change:
 
 ```bash
+codex plugin marketplace upgrade kimi-plugin-codex
 codex plugin remove kimi@kimi-plugin-codex
 codex plugin add kimi@kimi-plugin-codex
 ```
 
-If you previously registered a global MCP for this plugin (pre-0.3), remove it:
+Local checkout (plugin authors only):
+
+```bash
+codex plugin marketplace add /absolute/path/to/kimi-plugin-codex
+codex plugin add kimi@kimi-plugin-codex
+```
+
+If you previously registered a global MCP for this plugin (pre-0.3):
 
 ```bash
 codex mcp remove kimi
 ```
-
-Windows: prefer `KIMI_CLI_PATH=%USERPROFILE%\.kimi-code\bin\kimi.exe` when PATH is incomplete.
 
 ## First verify
 
@@ -89,7 +117,7 @@ $kimi:setup
 $kimi:rescue implement a small responsive settings section using existing design tokens
 ```
 
-CLI probe:
+CLI probe (no host plugin required):
 
 ```bash
 node plugins/kimi/scripts/kimi-companion.mjs task --mode yolo -- "Reply with exactly: kimi-bridge-ok"
