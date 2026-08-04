@@ -10,6 +10,7 @@
 
 Kimi K3 前端、多模态很强，放在熟悉的 Kimi Code 环境里会更强。专业评测印证了这点：K3 训练时保留了 thinking history，若 harness 没有正确回传推理历史，表现会不稳定——Moonshot 官方建议用 Kimi Code 这样的 verified harness 来保证质量（[来源](https://www.nxcode.io/resources/news/kimi-k3-benchmarks-coding-agent-evaluation-guide-2026)）。Hugging Face 的量化记录也显示，K3 用 Kimi Code harness 评测，换成 Claude Code harness 只得到 73.7（[来源](https://huggingface.co/unsloth/Kimi-K3-GGUF)）。
 更重要的是，更换 harness 会直接改变跑分**和**运行成本——换言之，让 K3 留在 Kimi Code 里既更准也更省。如果你已经习惯了 Codex，觉得切换工具很麻烦，本插件让你在 Codex 里直接把 Kimi Code 当 subagent 调用，K3 仍在它最熟悉的 Kimi Code 环境里干活。
+如果你馋 Kimi code 最独特的**视频上下文**功能，本插件同样支持。
 
 吐槽一下，GPT 做的前端真的拉完了，虽然 codex 确实好用。
 

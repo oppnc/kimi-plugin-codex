@@ -9,6 +9,7 @@
 Call local **[Kimi Code](https://github.com/MoonshotAI/kimi-code)** as a subagent from **OpenAI Codex** (local CLI / IDE).
 
 Kimi K3 is strong at frontend and multimodal work — and stronger inside Kimi Code. Professional benchmarks confirm this: K3 was trained with preserved thinking history, and if a harness doesn't send earlier reasoning back correctly, performance becomes unstable — Moonshot officially recommends using a verified harness like Kimi Code to maintain quality ([source](https://www.nxcode.io/resources/news/kimi-k3-benchmarks-coding-agent-evaluation-guide-2026)). Hugging Face's quantized record also shows K3 evaluated with the Kimi Code harness scores only 73.7 when run with the Claude Code harness ([source](https://huggingface.co/unsloth/Kimi-K3-GGUF)). More importantly, switching harnesses directly changes both the score **and** the operational cost — in other words, keeping K3 in Kimi Code is both more accurate and cheaper. If you're used to Codex and find switching tools a hassle, this plugin lets you call Kimi Code as a subagent right inside Codex, while K3 keeps working in its most familiar Kimi Code environment.
+If you want Kimi Code's most distinctive **video context** capability, this plugin supports that too.
 
 The plugin triggers Kimi automatically — the main agent MUST hand off to Kimi for any UI/interaction frontend work.
 You can also request it explicitly, e.g. "let Kimi handle this page."
